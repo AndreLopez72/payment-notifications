@@ -1,0 +1,33 @@
+# AI usage disclosure
+
+> AI assistants were used during this assessment. The entries below describe the work performed and how it was reviewed.
+
+## Tools
+
+| Tool (name and version, if known) | Where used (part and files) | What it was used for |
+|---|---|---|
+| ChatGPT / Codex (model/version not exposed in this session) | Part A: `docs/design/SOLUTION_DESIGN.md`, `docs/adr/0001-salesforce-integration.md`, `docs/adr/0002-stack-and-state-store.md`, `docs/adr/0003-idempotency-ordering.md`, `docs/ASSUMPTIONS.md` | Read the assessment and provider/Salesforce references; drafted and refined the architecture, Mermaid diagrams, canonical event proposal, Salesforce integration decision, idempotency/ordering decision, capacity estimate, and explicit assumptions/open items. |
+| ChatGPT / Codex (model/version not exposed in this session) | Part A: `docs/design/SOLUTION_DESIGN.md`, `docs/adr/0001-salesforce-integration.md`, `docs/adr/0002-stack-and-state-store.md`, `docs/adr/0003-idempotency-ordering.md`, `docs/ASSUMPTIONS.md` | Compared the proposal with requirements and references; documented provider-specific signature rules, separated provider delivery IDs from business-event IDs, preserved ordered Salesforce transitions, added outbox-based dead-letter/replay handling, routed Salesforce calls through API Manager, and recorded unresolved business/platform questions. |
+| ChatGPT / Codex (model/version not exposed in this session) | Part F: `docs/ai/AI_GUIDELINES.md` | Drafted proposed squad guidance for safe AI use, validation, PR disclosure, and controls for a hypothetical service calling an LLM. |
+| ChatGPT / Codex (model/version not exposed in this session) | Repository root: `AI_USAGE.md` | Prepared this disclosure based on the work completed in the repository. |
+
+## Validation
+
+- Compared the design and ADRs with `README.md`, `SCENARIO.md`, `TASKS.md`, `SUBMISSION_CHECKLIST.md`, the provider webhook specifications, Salesforce data model/API constraints, and the incident record.
+- Checked that the proposal preserves the assessment scope: Mule 4 as the reference stack, all three countries in Part A, Mexico and Colombia only for Part B, no direct policy-status writes, no deployment, and no real external calls.
+- Rechecked the Salesforce call estimates against the documented 200-record batch size, 150,000-call integration budget, 25-request concurrency limit, and the proposed two-second batch linger. The estimate is labeled as a sizing estimate, not a proven SLO.
+- Rechecked provider-specific signature and retry identity behavior against the webhook references. The design preserves the distinction between provider event identity and Meridian's per-ingestion attempt ID.
+- Reviewed the resulting files and searched for key terms and decisions. No application code or automated tests were run; this work was documentation-only.
+- The final selection remains Mule 4, Azure SQL, Azure Service Bus, and the scenario's existing Azure Monitor, Application Insights, and Log Analytics. These architecture choices are proposals and are listed in `docs/ASSUMPTIONS.md` where the source documents do not dictate them.
+
+## What I discarded or corrected
+
+- Did not switch observability to Dynatrace. It appeared in additional employer-stack information, while the assessment scenario explicitly identifies Azure Monitor, Application Insights, and Log Analytics as existing platform services. The assessment guidance was given priority.
+- Did not select Spring Boot, Azure Functions, Container Apps, App Service, or AKS as the implementation runtime. They were discussed as alternatives or company technologies; the documented proposal uses the assessment's Mule 4 reference stack and the existing Mule-capable integration platform.
+- Corrected the peak Salesforce-call estimate to account for the proposed two-second batch linger: approximately 450 calls during the 36,000-notification burst at 40 notifications/second when batches average about 80 records, versus 180 calls if full 200-record batches are achieved. The daily hard upper bound is separately stated as 120,000 calls if every notification were sent individually.
+- Marked unresolved architecture values as assumptions or validation items instead of presenting them as facts from the assessment. These include retention, key derivation, retry limits, and the Mule platform's identity support for Azure access.
+
+## Data shared with AI tools
+
+The AI assistant reviewed the fictional assessment documents in this repository, including provider specifications, sample payload descriptions, test-vector metadata, Salesforce constraints, and the fictional incident. The repository references contain fictional sandbox-only test secrets; no production credentials, real customer data, or real payer personal data were provided. No literal secret values or payer personal data were added to the deliverables.
+
