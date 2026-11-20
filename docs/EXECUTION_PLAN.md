@@ -1,0 +1,112 @@
+# Premium Payment Notifications — Execution Plan
+
+## 1. Approach and main dependencies
+
+This plan follows the assessment instructions and the proposed architecture in [`design/SOLUTION_DESIGN.md`](design/SOLUTION_DESIGN.md). It is organized around independently reviewable functional increments so that each change can be recorded in an English commit message. It is a plan only; no implementation starts until the open questions below are answered and the user authorizes the next step.
+
+The order respects the deliverable dependencies:
+
+1. Confirm the design decisions that affect implementation and record unresolved assumptions in [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
+2. Define and validate the webhook and canonical-event contracts before implementing the intake.
+3. Implement the two in-scope provider adapters (Quetzal Pagos and Andina Pay), then the shared intake, durable acceptance, idempotency, and canonical-event publication path.
+4. Add tests and the practical README for Part B. External broker, datastore, secrets, and other external dependencies remain stubbed in the practical implementation.
+5. Deliver Azure infrastructure as code and CI/CD without deploying anything.
+6. Complete operations and incident response, verify the existing PR review, and finish the AI-use and submission documents.
+
+Implementation constraints for every code increment:
+
+- Follow Clean Code, Clean Architecture, SOLID, security practices, and automated testing as requested for this work. Keep provider-specific rules isolated from the provider-independent flow, consistent with the solution design and NFR9.
+- Preserve the assessment scope: Part A covers all three providers; Part B implements intake for Mexico and Colombia only; Salesforce writes are out of scope for Part B; no real external calls and no Azure deployment.
+- Keep payer personal data, secrets, and raw webhook bodies out of persisted operational data and telemetry, as specified in NFR6 and the solution design.
+- Use supplied provider samples and test vectors. Document the toolchain, commands, stubs, validation results, and known gaps in the required READMEs.
+- Keep documents, code comments, and commit messages in English, as required by `README.md`. Suggested commit messages below are therefore in English.
+- For any unresolved value, do not silently choose one. Follow `README.md` by recording an explicit assumption in `docs/ASSUMPTIONS.md`; if a source conflict or a decision that changes the design is found, stop that affected increment and ask before implementing it.
+
+## 2. Ordered increments
+
+| Order | Functional increment | Requirements / source | Files in scope | Validation and completion evidence | Suggested commit |
+|---:|---|---|---|---|---|
+| 0 | **Resolve implementation blockers and baseline the design.** Confirm choices that are prerequisites for concrete code or IaC. Check the solution design, ADRs, requirements, references, and assumptions for contradictions. Do not change architecture silently. | `README.md`; `SCENARIO.md`; `TASKS.md` Part A–C; `SOLUTION_DESIGN.md`; ADR-0001/0002/0003; A-01/A-02/A-17/A-21/A-22 | `docs/ASSUMPTIONS.md`; relevant ADR/design files only if an agreed decision requires a documented update | Answers recorded for blockers; any changed decision is propagated through all affected design references before dependent implementation. No implementation in this increment. | `docs: record implementation decisions and assumptions` |
+| 1 | **Webhook and event contracts.** Specify the Mexico and Colombia webhook endpoints and the versioned provider-independent payment event before coding. Document compatible contract evolution. | FR1, FR2, FR4, NFR4, NFR6; `TASKS.md` Part B; provider specs; A-09/A-11/A-12/A-19/A-20 | `docs/api/webhooks.openapi.yaml`; `docs/api/events/premium-payment.schema.json`; `docs/api/README.md` | Validate OpenAPI and JSON Schema syntax; compare fields, signatures, status/amount mapping, and response behavior against provider specifications and the proposed event. No unverified field or provider behavior is represented as fact. | `feat(api): define payment webhook and event contracts` |
+| 2 | **Quetzal adapter.** Implement exact raw-byte signature verification and timestamp validation, payload validation, mapping, and provider-event identity for Quetzal. | FR1, FR2, FR4, NFR4, NFR6; `reference/providers/quetzal-mx/`; solution design; A-03/A-12 | `practical/` Quetzal adapter and focused tests | Use supplied Quetzal samples and signature test vectors. Test valid signature, invalid signature/timestamp, supported event states, mapping, duplicate identity, and that sensitive fields are not emitted or persisted. Do not call real services. | `feat(intake): add Quetzal webhook adapter` |
+| 3 | **Andina adapter.** Implement Andina signature and timestamp handling, payload validation, canonical mapping, and retry-safe business-event identity. | FR1, FR2, FR4, NFR4, NFR6; `reference/providers/andina-co/`; solution design; A-03/A-09/A-11/A-12 | `practical/` Andina adapter and focused tests | Use supplied Andina samples, retry sample, changelog, and test vectors. Verify `transaccion.id` plus `transaccion.estado` deduplicates business retries while attempt identifiers remain searchable; test states and malformed policy reference handling against the documented format. | `feat(intake): add Andina webhook adapter` |
+| 4 | **Shared intake and durable acceptance boundary.** Connect provider adapters to shared validation and persistence abstractions. A successful response is returned only after the configured inbox/outbox transaction succeeds; duplicate valid events are handled idempotently. | FR4, NFR3, NFR4, NFR6, NFR9; `SOLUTION_DESIGN.md` persistence and intake sections; A-04/A-08/A-12/A-20 | `practical/` shared intake, persistence interfaces/stubs, and tests | Test new delivery, duplicate business event, persistence failure (no success acknowledgement), and provider retry behavior. Stub datastore and secrets as required by Part B. Do not persist raw bodies or payer PII. | `feat(intake): add durable idempotent webhook processing` |
+| 5 | **Canonical event publication.** Add the outbox publication boundary and a broker stub so accepted canonical events are emitted in the contract format. | FR2, FR6, NFR3, NFR6; `SOLUTION_DESIGN.md` outbox and messaging sections; A-01/A-04/A-15/A-19 | `practical/` outbox publisher, broker interface/stub, and tests | Test publication after durable acceptance, retry after simulated publication failure, and preservation of event/payment keys. Validate emitted events against the JSON Schema. No real broker call. | `feat(events): publish canonical payment events through an outbox` |
+| 6 | **Part B integration verification and usage documentation.** Bring the adapters, shared flow, contracts, and automated tests together; document how a reviewer can inspect and run the practical part. | FR1, FR2, FR4, NFR3, NFR4, NFR6; all Part B items in `TASKS.md` and `SUBMISSION_CHECKLIST.md` | `practical/README.md`; `practical/` tests; contract files from increment 1 | Run the documented build and automated tests where the available toolchain permits; record exact results and known gaps. Confirm all required external services are stubbed. Do not claim tests passed unless actually run. | `test(intake): verify provider flows and document local validation` |
+| 7 | **Azure infrastructure as code and service rationale.** Define the proposal's Azure SQL, Service Bus, secrets store, identities/role assignments, and observability resources using **Terraform**. Parameterize environments and any country-specific values required by the design. Select service tiers and cost estimates only with explicit, documented assumptions. | NFR1, NFR3, NFR5–NFR8; `TASKS.md` Part C; `SOLUTION_DESIGN.md`; A-02/A-14/A-15/A-16/A-17/A-21/A-22 | `infra/`; `infra/README.md`; `docs/infra/AZURE_SERVICES.md`; `docs/ASSUMPTIONS.md` if decisions are provisional | Run `terraform validate` without deployment and record how it was run. Review least-privilege roles, environment parameters, messaging/DLQ configuration, cost assumptions, and identity compatibility. Never deploy. | `feat(infra): define Azure resources and service rationale` |
+| 8 | **CI/CD definition.** Add pull-request CI quality/security gates and define dev → test → prod CD controls, including Azure authentication without stored secrets. CD is defined only; it is not executed. | `TASKS.md` Part C; `SOLUTION_DESIGN.md` pipeline guidance; NFR6/NFR8 | `.github/workflows/` or `pipelines/` as selected; `SUBMISSION.md` only if a CI link is available | Inspect workflow triggers, gate outcomes, secret handling, federated authentication design, environment controls, and separation between CI and non-executed CD. Validate workflow syntax if a validator is available and document its result. | `ci: add pull request quality and security pipeline` then `ci: define staged deployment workflow` |
+| 9 | **Operations and incident response.** Define per-country SLIs/SLOs, correlation propagation, safe telemetry, alerts and escalation; then respond to the documented INC-0412 with evidence-based diagnosis, remediation, safe replay, and prevention. | FR7, NFR2, NFR3, NFR6, NFR7; `TASKS.md` Part D; `reference/incident/INC-0412.md`; A-07/A-08/A-14/A-15/A-16/A-18/A-20 | `docs/operations/OPERATIONS.md`; `docs/operations/INC-0412-RESPONSE.md`; `docs/ASSUMPTIONS.md` for unspecified alert thresholds/owners or runbook decisions | Check that SLOs derive from documented NFRs; distinguish supplied incident evidence from hypotheses; ensure replay retains idempotency keys and does not expose PII/secrets. Respect the two-page limit for each document. | `docs(operations): define payment notification support procedures` |
+| 10 | **Code review deliverable.** Verify the existing review against the PR description and diff, then ensure findings are prioritized, scenario-specific, line-referenced, and have a clear verdict. | `TASKS.md` Part E; `pr-review/PR-214.md`; `pr-review/PR-214.diff`; `pr-review/REVIEW.md` template | `pr-review/REVIEW.md` | Recheck every finding against the supplied diff and scenario; confirm each has severity, file/line, scenario impact, and a suggested fix. Review respectfully and do not review hypothetical code outside the PR. | `docs(review): complete PR-214 assessment` |
+| 11 | **Responsible AI and final submission.** Keep the AI disclosure accurate as work progresses; finish the squad guidelines, submission entry point, and checklist only after the deliverables and validations are known. | `TASKS.md` Part F; `README.md`; `SUBMISSION_CHECKLIST.md` | `AI_USAGE.md`; `docs/ai/AI_GUIDELINES.md`; `SUBMISSION.md`; `docs/ASSUMPTIONS.md` | Confirm tool/use/validation/discard disclosures are truthful; include safe-data rules, generated-code validation, PR disclosure, and controls for an LLM-calling service. Check every checklist item, absence of secrets/real personal data, final commit SHA, and that no Azure deployment or real external call occurred. | `docs(submission): complete assessment disclosure and handoff` |
+
+### Part B local development and test approach
+
+The practical component is planned as a Mule 4 application tested with MUnit, as specified by `TASKS.md`. Its tests exercise the HTTP intake through canonical-event publication while substituting external dependencies. This enables development without the company's production hosting arrangement, Azure deployment, real provider requests, or Salesforce calls.
+
+| Test boundary | Planned test approach | Evidence / limits |
+|---|---|---|
+| Provider adapter | MUnit tests use the exact raw-body fixtures and signature test vectors for each in-scope provider. Cover valid signatures, altered body/signature, timestamp rejection, event/state mapping, and provider-specific event identity. | Quetzal vector timestamps and signatures are in `reference/providers/quetzal-mx/WEBHOOK_SPEC.md`; Andina vectors and retry identity are in `reference/providers/andina-co/WEBHOOK_SPEC.md`. Preserve fixture bytes exactly; do not parse and reserialize before signature verification. |
+| Sensitive data handling | Assert canonical output and data sent to persistence/publication stubs omit payer name, national ID, email, payment token, webhook secret, and raw body. | This checks application boundaries; it does not prove platform-wide log/telemetry configuration. |
+| Shared intake and persistence boundary | Stub secret retrieval and persistence. Test new event, duplicate event, idempotency key, commit-before-success behavior, and persistence failure returning non-success without publication. | The stub verifies flow behavior, not Azure SQL durability or transaction semantics. |
+| Canonical publication boundary | Stub the broker/outbox publisher. Assert the canonical event is schema-valid and sent once for a newly accepted business event; simulate publish failure and verify it is not falsely marked published. | The stub verifies producer behavior, not Service Bus delivery guarantees or DLQ configuration. |
+| HTTP and contract behavior | Exercise the webhook flows and compare emitted event payloads to `docs/api/events/premium-payment.schema.json`; validate the endpoint contract against `docs/api/webhooks.openapi.yaml`. | The solution proposes `204` after durable acceptance. Provider-specific timing targets are 10 seconds for Quetzal and 5 seconds for Andina; local stubbed response timing is diagnostic and does not prove production latency. |
+| Scope boundary | Do not include Salesforce writes in Part B tests. | `TASKS.md` explicitly excludes Salesforce writing from Part B. Salesforce route/authentication and production integration require separate validation. |
+
+The exact Mule, DataWeave, MUnit, and build-plugin versions and the available local/Anypoint build environment are not specified in the assessment. Select versions only after checking what is available, then record them and the exact build/test commands in `practical/README.md`. Do not claim a build or test passed unless it ran successfully.
+
+### Commit practice
+
+- Make one commit per completed increment or independently reviewable sub-increment; keep each commit limited to the files for that change.
+- Use the suggested English commit subject or a more precise equivalent. Do not commit generated output, secrets, real personal data, or unvalidated claims.
+- Update `AI_USAGE.md` when AI-assisted work or its validation changes, rather than reconstructing the disclosure from memory at the end.
+- Do not make a commit that marks a validation as successful until that validation has actually been run and its result recorded.
+
+## 3. Blocking questions
+
+Terraform is selected for Part C. The following questions remain before the affected implementation increments; they are not reasons to silently change the selected Mule 4 architecture.
+
+1. **Can the target Mule runtime access Azure SQL, Service Bus, and the selected secrets store using the required managed/non-secret identity mechanism and approved network path?** The proposal places Mule on the existing enterprise integration platform; the assessment does not say whether that platform is hosted inside or outside Azure, or document Mule's Azure identity capability. A-02/A-21 and ADR-0002 leave this compatibility check open. If the answer is no, the architecture must be revisited before implementing those identity and connectivity details.
+2. **Can API Manager mediate and cache Salesforce backend OAuth client-credentials tokens for the Salesforce System API?** The provisional design routes Salesforce requests through API Manager, as requested. The assessment and PR-214 do not confirm that this mediation is supported by the target platform. Verify it before implementing that configuration; if unsupported, pause and ask before changing the provisional decision. This does not block Part B intake, where Salesforce writes are out of scope.
+
+If any answer conflicts with the assessment or the selected solution, stop the affected increment and ask for resolution before editing the design or implementation.
+
+These two platform questions block finalizing the production Azure connectivity and Salesforce backend integration, respectively. They do not block Part B's local intake tests because its external dependencies are stubbed and Salesforce writing is out of scope.
+
+**Potential Part B validation impediment:** `TASKS.md` notes that MuleSoft Enterprise dependencies may require credentials unavailable for CI. The assessment does not establish whether the local build environment has those credentials. Before relying on MUnit execution, verify access to the selected Mule build and test dependencies. If unavailable, implementation and test sources can still be prepared, but build/test execution must be reported as unverified in `practical/README.md`; do not substitute claims of passing tests.
+
+## 4. Risks and decisions to track in `docs/ASSUMPTIONS.md`
+
+`docs/ASSUMPTIONS.md` already tracks A-01 through A-22. Keep those entries current; do not create duplicate assumptions. The following have the clearest impact on implementation order or acceptance and should be revisited at the increment indicated:
+
+| Existing assumption | Impacted increment(s) | Why it matters / handling in the plan |
+|---|---:|---|
+| A-02 — Mule-to-Azure identity | 0, 7 | Could prevent the selected runtime from satisfying the managed-identity requirement; verify before finalizing Azure access and role assignments. |
+| A-03 — payment key derivation and provider identifier uniqueness | 1–4 | Affects deduplication, Salesforce upsert identity, and provider ID persistence; use only documented provider identity rules until confirmed. |
+| A-04 — durable acceptance and asynchronous Salesforce processing | 4–5 | Defines when a webhook can receive success and what must be committed first; keep the selected behavior explicit and test the persistence-failure path. |
+| A-05/A-06 — ordering, late events, Salesforce side effects, partial refunds | 0, 9 | Unresolved Salesforce semantics affect production processing/reconciliation; do not invent a business transition or refund mapping. Part B itself does not write Salesforce. |
+| A-07 — freshness feasibility during Salesforce outages | 7, 9 | Load and backlog-drain evidence is needed before claiming the target is proven; document sizing as an estimate and validate without deployment. |
+| A-08/A-12 — FR7 scope and provider HTTP responses | 1–4, 9 | Avoid silently changing rejection, retry, or operator-visibility behavior; retain documented provider behavior and record unresolved handling. |
+| A-09/A-11/A-19 — identifier lengths, amount representation, event contract/version | 1–3 | These affect schema correctness and data compatibility; validate against provider/Salesforce references and seek owner confirmation where the sources leave a choice. |
+| A-10/A-15 — retry/batching values and DLQ/replay mechanics | 5, 7, 9 | Operational values and broker mechanics are proposals, not source facts; keep bounded defaults labeled provisional and make replay idempotent. |
+| A-14/A-16/A-17 — telemetry exporter, retention/privacy approval, Azure tiers/cost | 7, 9 | These require platform, privacy, and cost validation; preserve Azure Monitor/Application Insights/Log Analytics from the scenario and do not add unapproved products. |
+| A-18/A-20 — operations authorization and correlation propagation | 1, 9 | Required for secured status lookup and traceability; use the proposal provisionally and identify the access/ID details requiring owner confirmation. |
+| A-21/A-22 — secrets store and Salesforce API Manager credential mediation | 0, 7 | Affect identity, secrets, and Salesforce routing; keep Key Vault and mediation decisions provisional until platform owners confirm feasibility. |
+
+Other open items in A-01 through A-22 remain tracked in the assumptions file and should be addressed when their relevant deliverable is implemented. Do not treat an assumption as a confirmed requirement.
+
+## 5. Closure criteria from `SUBMISSION_CHECKLIST.md`
+
+The work is ready for handoff only when the applicable checklist items are complete and the final repository state has been reviewed:
+
+- **General:** `SUBMISSION.md` and `AI_USAGE.md` complete; assumptions recorded; no secrets, tokens, or real personal data in files or Git history; repository visibility set as requested by the assessment before submission.
+- **Part A:** solution design includes the required context/sequence diagrams, canonical event/provider mapping, idempotency and ordering, error handling, capacity, data, and secured FR7 lookup; mandatory ADR-0001 and ADR-0002 are complete.
+- **Part B:** OpenAPI, versioned event schema, API evolution notes, Mexico and Colombia intake implementation, automated tests, and practical README are present. External dependencies are stubbed.
+- **Part C:** Terraform and its README are present; Azure service rationale includes alternatives, tier/SKU and order-of-magnitude monthly cost assumptions; CI and staged CD are defined; IaC validation method and result are documented; nothing is deployed.
+- **Part D:** both operations documents are present, within their page limits, and grounded in the NFRs and supplied incident record.
+- **Part E:** `pr-review/REVIEW.md` contains prioritized, line-specific findings and a verdict based on PR-214.
+- **Part F:** AI usage is disclosed honestly; AI guidelines cover allowed/prohibited data, validation, PR disclosure, and controls for an LLM-calling service.
+- **Final handoff:** checklist reviewed, final commit SHA placed in `SUBMISSION.md`, and repository URL plus SHA sent to the recruiter before the deadline by the candidate. The assessment says commits after the deadline are not considered.
+
+## 6. Information not specified by the assessment
+
+The following values or implementation details are not fixed by the assessment and must not be presented as source requirements: concrete tool and dependency versions; Azure service tiers/SKUs and approved monthly budget; exact alert thresholds and paging owners; Mule-to-Azure identity/exporter compatibility; and confirmation of provisional business/API decisions listed in `docs/ASSUMPTIONS.md`. Terraform is the user's selected IaC language for this execution plan. Record any other working choice and its rationale in `docs/ASSUMPTIONS.md` before relying on it.

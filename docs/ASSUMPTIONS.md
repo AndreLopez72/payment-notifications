@@ -214,11 +214,11 @@
 
 ## A-22 — API Manager mediation of Salesforce access
 
-- **Documents affected:** `docs/design/SOLUTION_DESIGN.md`; `docs/adr/0001-salesforce-integration.md`; API Manager configuration.
-- **Question:** Which component will apply and cache Salesforce OAuth credentials for the Salesforce System API behind API Manager?
-- **Context:** The scenario requires no point-to-point system calls, an IdP token for internal APIs published through API Manager, and Salesforce OAuth 2.0 client credentials. It does not specify which component performs the Salesforce backend token exchange.
-- **Options:** (1) Mule consumer calls a Salesforce System API through API Manager; gateway/backend configuration obtains Salesforce credentials — centralizes API governance; requires supported token mediation and credential ownership. (2) Publish a Salesforce System API through API Manager but let Mule obtain/attach Salesforce OAuth credentials — keeps backend auth in integration; requires secure token handling in Mule and still routes the API through the gateway.
-- **Provisional assumption used:** Route all Salesforce REST requests through an internal API Manager System API; require an IdP M2M token at the gateway and use the Salesforce OAuth client-credentials flow for the backend. Store the Salesforce client secret in the approved secrets store and cache the access token for its documented lifetime.
-- **Impact if incorrect:** Direct calls could violate the no-point-to-point rule, or an unsupported token mediation design could block Salesforce writes.
+- **Documents affected:** `docs/design/SOLUTION_DESIGN.md`; `docs/adr/0001-salesforce-integration.md`; API Manager configuration; `pr-review/PR-214.md`.
+- **Question:** Can API Manager mediate and cache Salesforce OAuth client-credentials tokens for the Salesforce System API?
+- **Context:** The scenario requires no point-to-point system calls, an IdP token for internal APIs published through API Manager, and Salesforce OAuth 2.0 client credentials. It does not specify whether API Manager supports the required backend token exchange and caching. PR-214 describes a `SalesforceClient` interface as handling OAuth token caching, but does not include its implementation or establish whether calls pass through API Manager.
+- **Options:** (1) Mule calls a Salesforce System API through API Manager, where gateway/backend configuration obtains and caches Salesforce credentials — centralizes API governance; requires supported token mediation and credential ownership. (2) Mule obtains and attaches Salesforce OAuth credentials when calling the System API through API Manager — keeps backend authentication in the integration; requires secure token handling in Mule and still routes the API through the gateway.
+- **Provisional assumption used:** Keep the current proposal: route all Salesforce REST requests through an internal API Manager System API; require an IdP M2M token at the gateway; have API Manager mediate Salesforce OAuth client credentials, using the approved secrets store and caching the access token for its documented lifetime. This is a provisional design choice, not confirmation that the target API Manager supports the flow.
+- **Impact if incorrect:** An unsupported token mediation design could block Salesforce writes; direct calls could violate the no-point-to-point rule. Confirm platform capability before implementing the Salesforce route or its credentials configuration.
 - **Who should answer:** API Manager owner and Salesforce integration/security team.
 
