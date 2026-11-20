@@ -188,7 +188,7 @@
 - **Question:** Is `schemaVersion` as a `major.minor` string and the proposed field set acceptable to Finance and Notifications?
 - **Context:** FR2 and FR6 require a canonical event; Part B requires a versioned JSON Schema. The assessment does not define field names, required fields, event ID format, or compatibility rules.
 - **Options:** (1) Version field in the event with additive optional changes within a major version — easy for consumers to inspect; requires compatibility discipline. (2) Version in schema/metadata outside the payload — keeps payload business-focused; depends on broker/schema tooling not specified.
-- **Provisional assumption used:** Use `schemaVersion: "1.0"` and the fields proposed in `SOLUTION_DESIGN.md`; treat additive optional fields as compatible within a major version.
+- **Provisional assumption used:** Use `schemaVersion: "1.0"` and the fields proposed in `SOLUTION_DESIGN.md`; require those fields in the event, with `refundedAmount` present as a nullable value when no refund amount is supplied; treat additive optional fields as compatible within a major version. Requiredness is a proposal because the assessment does not define it.
 - **Impact if incorrect:** Producers and consumers may interpret the same event differently or break on contract evolution.
 - **Who should answer:** Payments Integration API owner and downstream Finance/Notifications owners.
 
@@ -221,4 +221,14 @@
 - **Provisional assumption used:** Keep the current proposal: route all Salesforce REST requests through an internal API Manager System API; require an IdP M2M token at the gateway; have API Manager mediate Salesforce OAuth client credentials, using the approved secrets store and caching the access token for its documented lifetime. This is a provisional design choice, not confirmation that the target API Manager supports the flow.
 - **Impact if incorrect:** An unsupported token mediation design could block Salesforce writes; direct calls could violate the no-point-to-point rule. Confirm platform capability before implementing the Salesforce route or its credentials configuration.
 - **Who should answer:** API Manager owner and Salesforce integration/security team.
+
+## A-23 — Webhook paths and contract dialects
+
+- **Documents affected:** `docs/api/webhooks.openapi.yaml`; `docs/api/events/premium-payment.schema.json`; `docs/api/README.md`.
+- **Question:** Are the proposed webhook paths, request-field requiredness, and contract dialect versions compatible with the API Manager and provider registrations?
+- **Context:** Provider specifications say the merchant configures a webhook URL, and the assessment requires OpenAPI 3.x and a JSON Schema, but none specifies endpoint paths, all required source fields, or exact dialect versions supported by the API Manager and tooling.
+- **Options:** (1) Use separate provider-named paths and OpenAPI 3.1.0 / JSON Schema 2020-12 — explicit and aligned with the event schema's proposed dialect; requires API Manager support and provider registration. (2) Follow an existing enterprise route/version convention and supported dialects — aligns with platform governance; requires that convention to be supplied.
+- **Provisional assumption used:** Propose `POST /webhooks/quetzal` and `POST /webhooks/andina`, OpenAPI 3.1.0, and JSON Schema 2020-12. Mark only the fields needed for the proposed mapping as required; accept unknown fields so provider additions do not automatically break intake. These are contract proposals, not facts from the assessment.
+- **Impact if incorrect:** API Manager import, provider registration, validation behavior, or schema tooling may need adjustment before deployment.
+- **Who should answer:** API Manager owner and Payments Integration API owner.
 

@@ -1,0 +1,268 @@
+openapi: 3.1.0
+info:
+  title: Premium Payment Provider Webhooks
+  version: 1.0.0
+  description: >-
+    Proposed API Manager contract for Quetzal Pagos and Andina Pay webhook
+    intake. The paths and OpenAPI dialect are provisional; see
+    docs/ASSUMPTIONS.md (A-23).
+paths:
+  /webhooks/quetzal:
+    post:
+      operationId: receiveQuetzalWebhook
+      summary: Receive a Quetzal Pagos payment event
+      description: >-
+        Verify Quetzal-Signature against the exact request-body bytes before
+        parsing or mapping the payload. Return success only after the
+        validated event and its outbox entry have been durably accepted.
+      parameters:
+        - name: Quetzal-Signature
+          in: header
+          required: true
+          description: >-
+            Quetzal HMAC-SHA256 signature over
+            `<unix_timestamp>.<raw_body>` using the provider's documented
+            header format. During secret rotation, accept any valid v1 value.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuetzalWebhook'
+      responses:
+        '204':
+          description: >-
+            The notification was durably accepted, or was recognized as a
+            duplicate of an accepted business event.
+        '400':
+          description: >-
+            Proposed response for an invalid signature, timestamp, or payload.
+            Exact invalid-request response codes are not specified by Quetzal.
+        '500':
+          description: >-
+            Durable acceptance failed. The provider should retry according to
+            its delivery policy.
+
+  /webhooks/andina:
+    post:
+      operationId: receiveAndinaWebhook
+      summary: Receive an Andina Pay payment notification
+      description: >-
+        Verify X-Andina-Signature against the exact request-body bytes and
+        X-Andina-Timestamp before parsing or mapping the payload. Return
+        success only after the validated event and its outbox entry have been
+        durably accepted.
+      parameters:
+        - name: X-Andina-Timestamp
+          in: header
+          required: true
+          description: ISO-8601 timestamp with offset included in the signature.
+          schema:
+            type: string
+            format: date-time
+        - name: X-Andina-Signature
+          in: header
+          required: true
+          description: >-
+            Base64-encoded HMAC-SHA256 of
+            `<X-Andina-Timestamp>.<raw_body>` using the merchant secret.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AndinaWebhook'
+      responses:
+        '204':
+          description: >-
+            The notification was durably accepted, or was recognized as a
+            duplicate of an accepted business event.
+        '400':
+          description: >-
+            Proposed response for an invalid signature, timestamp, or payload.
+            Exact invalid-request response codes are not specified by Andina.
+        '500':
+          description: >-
+            Durable acceptance failed. The provider should retry according to
+            its delivery policy.
+
+components:
+  schemas:
+    QuetzalWebhook:
+      type: object
+      description: >-
+        Quetzal event payload. Unknown properties are accepted so provider
+        additions do not automatically invalidate intake. Payer email and
+        payment tokens are sensitive inputs and must not be logged or retained.
+      required:
+        - id
+        - type
+        - created
+        - data
+      properties:
+        id:
+          type: string
+          description: Stable Quetzal event identifier across retries.
+        type:
+          type: string
+          enum:
+            - charge.succeeded
+            - charge.failed
+            - charge.refunded
+        created:
+          type: integer
+          description: Event creation time as Unix seconds in UTC.
+        data:
+          type: object
+          required:
+            - charge
+          properties:
+            charge:
+              type: object
+              required:
+                - id
+                - amount
+                - currency
+                - reference
+              properties:
+                id:
+                  type: string
+                  description: Charge identifier.
+                amount:
+                  type: integer
+                  description: Amount in the currency's minor unit.
+                amount_refunded:
+                  type: integer
+                  description: Refunded amount in the minor unit, when supplied.
+                currency:
+                  type: string
+                  description: ISO 4217 currency code; Quetzal sends lowercase.
+                reference:
+                  type: string
+                  description: Merchant reference containing the policy number.
+                paid_at:
+                  type:
+                    - integer
+                    - 'null'
+                  description: Capture time as Unix seconds, when supplied.
+                refunded_at:
+                  type:
+                    - integer
+                    - 'null'
+                  description: Refund time as Unix seconds, when supplied.
+                payment_method:
+                  type: object
+                  description: >-
+                    May contain a payment token. Do not include it in the
+                    canonical event, persistence, logs, or telemetry.
+                  properties:
+                    type:
+                      type: string
+                    token:
+                      type: string
+                      writeOnly: true
+                  additionalProperties: true
+                customer:
+                  type: object
+                  description: Contains payer personal data; do not log or retain.
+                  properties:
+                    email:
+                      type: string
+                      format: email
+                      writeOnly: true
+                  additionalProperties: true
+                failure_code:
+                  type: string
+                  description: Failure reason for a failed charge, when supplied.
+              additionalProperties: true
+          additionalProperties: true
+      additionalProperties: true
+
+    AndinaWebhook:
+      type: object
+      description: >-
+        Andina notification payload. Unknown properties must be ignored as
+        specified by API version 2.3. Payer personal data must not be logged or
+        retained.
+      required:
+        - notificacion_id
+        - fecha_notificacion
+        - transaccion
+      properties:
+        notificacion_id:
+          type: string
+          description: Notification attempt identifier; changes on each retry.
+        fecha_notificacion:
+          type: string
+          format: date-time
+          description: Time this notification attempt was sent, including offset.
+        transaccion:
+          type: object
+          required:
+            - id
+            - estado
+            - valor
+            - moneda
+            - referencia
+            - fecha_transaccion
+          properties:
+            id:
+              type: string
+              description: Transaction identifier.
+            estado:
+              type: string
+              enum:
+                - PENDIENTE
+                - APROBADA
+                - RECHAZADA
+                - REVERSADA
+            valor:
+              type: string
+              pattern: '^[0-9]+\.[0-9]{2}$'
+              description: Decimal amount in major currency units.
+            moneda:
+              type: string
+              const: COP
+            referencia:
+              type: string
+              description: >-
+                Checkout reference. API version 2.3 may send it exactly as
+                entered; validate and normalize in the application flow.
+            medio_pago:
+              type: string
+              enum:
+                - PSE
+                - TARJETA
+                - EFECTIVO
+            fecha_transaccion:
+              type: string
+              format: date-time
+              description: State-change time, including offset.
+            motivo_reverso:
+              type: string
+              description: Present for REVERSADA notifications.
+            pagador:
+              type: object
+              description: Payer personal data; do not log or retain.
+              properties:
+                nombre:
+                  type: string
+                  writeOnly: true
+                documento:
+                  type: string
+                  writeOnly: true
+                correo:
+                  type: string
+                  format: email
+                  writeOnly: true
+              additionalProperties: true
+          additionalProperties: true
+      additionalProperties: true
+
+  # Provider authentication is an HMAC header scheme described per operation.
+  # API Manager routing/base URLs are intentionally omitted; their values are
+  # not specified by the assessment.

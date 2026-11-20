@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Premium Payment Event",
+  "description": "Proposed provider-independent payment event. No payer personal data, payment token, secret, or raw provider body is included.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "country",
+    "provider",
+    "providerEventId",
+    "providerTransactionId",
+    "paymentKey",
+    "policyNumber",
+    "status",
+    "amount",
+    "refundedAmount",
+    "currency",
+    "stateChangedAt",
+    "receivedAt",
+    "correlationId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Canonical event schema version."
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deterministic identity derived from provider and business-event identity."
+    },
+    "country": {
+      "type": "string",
+      "enum": ["MX", "CO", "CL"]
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["Quetzal", "Andina", "Austral"]
+    },
+    "providerEventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Provider event or notification-attempt identifier."
+    },
+    "providerTransactionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "paymentKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Proposed stable payment-lifecycle key sized for Salesforce Payment_Key__c."
+    },
+    "policyNumber": {
+      "type": "string",
+      "pattern": "^POL-(MX|CO|CL)-[0-9]{9}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "captured", "failed", "refunded"]
+    },
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]{2}$",
+      "description": "Original amount in major currency units, normalized to two decimal places."
+    },
+    "refundedAmount": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]+\\.[0-9]{2}$",
+      "description": "Refunded amount in major currency units when supplied by the provider; otherwise null."
+    },
+    "currency": {
+      "type": "string",
+      "enum": ["MXN", "COP", "CLP"]
+    },
+    "stateChangedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Provider state-change time normalized to UTC."
+    },
+    "receivedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time Meridian accepted the webhook, in UTC."
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Meridian-generated identifier for this HTTP delivery."
+    }
+  },
+  "additionalProperties": true
+}
