@@ -118,7 +118,7 @@
 - **Question:** Are the proposed response codes for invalid signatures, invalid payloads, persistence failure, and duplicates accepted by each provider contract?
 - **Context:** Provider specs define success codes and retry behavior but do not specify exact codes for every invalid request.
 - **Options:** (1) 4xx for invalid requests, 5xx for persistence failure, 2xx for a durably recognized duplicate — avoids retrying permanent errors and permits transient recovery; must fit provider handling. (2) Use different statuses per provider — could better match provider behavior; adds adapter-specific response logic.
-- **Provisional assumption used:** Return 204 for valid new/duplicate deliveries after durable commit; return 4xx for invalid signature/payload and 5xx for durable-store failure.
+- **Provisional assumption used:** Return 204 after durable commit for valid new/duplicate deliveries and for authenticated notifications with a business-data error that is safely recorded for operations correction; do not publish a canonical event for the latter. Return 4xx for invalid signatures/timestamps or structurally invalid payloads, and 5xx when durable storage fails. This separates Andina's documented malformed policy-reference correction workflow from provider delivery retries; confirm with provider integration and operations owners.
 - **Impact if incorrect:** Providers may retry non-retryable errors or stop retrying a notification that was not durably accepted.
 - **Who should answer:** Provider integration contacts.
 
@@ -185,10 +185,10 @@
 ## A-19 — Canonical event contract and versioning
 
 - **Documents affected:** `docs/design/SOLUTION_DESIGN.md`; `docs/api/events/premium-payment.schema.json`; `docs/api/README.md`.
-- **Question:** Is `schemaVersion` as a `major.minor` string and the proposed field set acceptable to Finance and Notifications?
-- **Context:** FR2 and FR6 require a canonical event; Part B requires a versioned JSON Schema. The assessment does not define field names, required fields, event ID format, or compatibility rules.
+- **Question:** Are `schemaVersion` as a `major.minor` string, the proposed field set, and a closed canonical-event object acceptable to Finance and Notifications?
+- **Context:** FR2 and FR6 require a canonical event; Part B requires a versioned JSON Schema. The assessment does not define field names, required fields, event ID format, compatibility rules, or whether unknown event properties should be accepted. The canonical event must exclude payer and provider-only data.
 - **Options:** (1) Version field in the event with additive optional changes within a major version — easy for consumers to inspect; requires compatibility discipline. (2) Version in schema/metadata outside the payload — keeps payload business-focused; depends on broker/schema tooling not specified.
-- **Provisional assumption used:** Use `schemaVersion: "1.0"` and the fields proposed in `SOLUTION_DESIGN.md`; require those fields in the event, with `refundedAmount` present as a nullable value when no refund amount is supplied; treat additive optional fields as compatible within a major version. Requiredness is a proposal because the assessment does not define it.
+- **Provisional assumption used:** Use `schemaVersion: "1.0"` and the fields proposed in `SOLUTION_DESIGN.md`; require those fields in the event, with `refundedAmount` present as a nullable value when no refund amount is supplied; treat additive optional fields as compatible within a major version, but require them to be registered in the schema (`additionalProperties: false`). For Quetzal, form `eventId` as `MX:Quetzal:<provider event id>`. For Andina, form it as `CO:Andina:<transaction id>:<provider state>` so notification retries retain the same business-event identity while distinct states remain distinct. Requiredness, schema closure, and ID formatting are proposals because the assessment does not define them.
 - **Impact if incorrect:** Producers and consumers may interpret the same event differently or break on contract evolution.
 - **Who should answer:** Payments Integration API owner and downstream Finance/Notifications owners.
 
@@ -231,4 +231,14 @@
 - **Provisional assumption used:** Propose `POST /webhooks/quetzal` and `POST /webhooks/andina`, OpenAPI 3.1.0, and JSON Schema 2020-12. Mark only the fields needed for the proposed mapping as required; accept unknown fields so provider additions do not automatically break intake. These are contract proposals, not facts from the assessment.
 - **Impact if incorrect:** API Manager import, provider registration, validation behavior, or schema tooling may need adjustment before deployment.
 - **Who should answer:** API Manager owner and Payments Integration API owner.
+
+## A-24 — Mule practical toolchain
+
+- **Documents affected:** `practical/pom.xml`; `practical/mule-artifact.json`; `practical/README.md`; Part B CI configuration.
+- **Question:** Are the proposed Mule runtime and build/test versions available in the candidate environment and acceptable for the target platform?
+- **Context:** The assessment specifies Mule 4, DataWeave, and MUnit as the reference stack but no versions. The current workspace does not expose Java or Maven executables, so local build and MUnit execution cannot yet be confirmed. Official MuleSoft compatibility information was consulted to choose a compatible provisional set.
+- **Options:** (1) Use Mule 4.9.9, Java 17, HTTP Connector 1.12.2, Java Module 2.0.8, MUnit 3.7.6, Mule Maven Plugin 4.10.4, and Maven 3.10.0 — based on current documented compatibility; requires those tools/dependencies to be available. (2) Use the exact versions bundled or approved by the candidate's Anypoint Code Builder/Studio environment — aligns to that environment; requires its version details and may require updating the POM.
+- **Provisional assumption used:** Use option 1 for the assessment implementation. Treat this as a build choice, not a requirement stated by the scenario; revise only if the available Anypoint environment or dependency access requires it.
+- **Impact if incorrect:** The application may not build or tests may not execute in the available environment until compatible versions and dependencies are confirmed.
+- **Who should answer:** Candidate and MuleSoft platform/tooling owner.
 

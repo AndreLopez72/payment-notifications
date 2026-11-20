@@ -11,15 +11,19 @@
 | ChatGPT / Codex (model/version not exposed in this session) | Part F: `docs/ai/AI_GUIDELINES.md` | Drafted proposed squad guidance for safe AI use, validation, PR disclosure, and controls for a hypothetical service calling an LLM. |
 | ChatGPT / Codex (model/version not exposed in this session) | Repository root: `AI_USAGE.md` | Prepared this disclosure based on the work completed in the repository. |
 | ChatGPT / Codex (model/version not exposed in this session) | Part B contracts: `docs/api/webhooks.openapi.yaml`, `docs/api/events/premium-payment.schema.json`, `docs/api/README.md`, and `docs/ASSUMPTIONS.md` | Drafted the webhook and canonical-event contracts from the assessment and provider references; recorded the unspecified route, dialect, and source-field requiredness as provisional assumptions. |
+| ChatGPT / Codex (model/version not exposed in this session) | Part B provider adapters: `practical/pom.xml`, `practical/src/main/java/com/meridian/payments/adapter/`, `practical/src/main/resources/dw/`, `practical/src/main/mule/provider-adapters.xml`, `practical/src/test/munit/provider-adapter-test-suite.xml`, and `practical/src/test/resources/providers/` | Implemented Quetzal and Andina signature-verification and canonical-mapping subflows with MUnit cases based on the supplied fictional test vectors and sample payloads; selected compatible provisional Mule tool versions after consulting official MuleSoft documentation. |
 
 ## Validation
 
 - Compared the design and ADRs with `README.md`, `SCENARIO.md`, `TASKS.md`, `SUBMISSION_CHECKLIST.md`, the provider webhook specifications, Salesforce data model/API constraints, and the incident record.
 - Compared the proposed Part B webhook fields and signature headers with the Quetzal and Andina specifications and samples. Parsed `premium-payment.schema.json` with PowerShell `ConvertFrom-Json`. No YAML parser was available locally, so `webhooks.openapi.yaml` received a manual structural review only; it has not been automatically linted or imported into API Manager.
+- Compared both provider verifiers and test setup with their supplied signing rules, timestamps, samples, and vectors. Mule POM, Java compilation, and MUnit suite were not built or run because Java and Maven executables are not available in the workspace.
+- Parsed the Mule XML files and relevant JSON files, confirmed all copied provider fixtures byte-for-byte, and independently recalculated all seven supplied HMAC vectors. These checks do not substitute for compiling or running MUnit.
+- Consulted official MuleSoft documentation for runtime/Java compatibility, HTTP Connector, Java Module, Mule Maven Plugin, DataWeave cryptography, hexadecimal encoding, UTC timezone conversion, and MUnit configuration. The selected versions and runtime pairing are recorded as provisional in `docs/ASSUMPTIONS.md` (A-24).
 - Checked that the proposal preserves the assessment scope: Mule 4 as the reference stack, all three countries in Part A, Mexico and Colombia only for Part B, no direct policy-status writes, no deployment, and no real external calls.
 - Rechecked the Salesforce call estimates against the documented 200-record batch size, 150,000-call integration budget, 25-request concurrency limit, and the proposed two-second batch linger. The estimate is labeled as a sizing estimate, not a proven SLO.
 - Rechecked provider-specific signature and retry identity behavior against the webhook references. The design preserves the distinction between provider event identity and Meridian's per-ingestion attempt ID.
-- Reviewed the resulting files and searched for key terms and decisions. No application code or automated application tests were run; this work was documentation and contract definition only.
+- Reviewed the resulting files and searched for key terms and decisions. No Mule build or MUnit test was run; the workspace lacks Java and Maven executables. The current changes include contracts and a first source-code/test increment, and the build/test status is explicitly unverified.
 - The final selection remains Mule 4, Azure SQL, Azure Service Bus, and the scenario's existing Azure Monitor, Application Insights, and Log Analytics. These architecture choices are proposals and are listed in `docs/ASSUMPTIONS.md` where the source documents do not dictate them.
 
 ## What I discarded or corrected
@@ -31,5 +35,5 @@
 
 ## Data shared with AI tools
 
-The AI assistant reviewed the fictional assessment documents in this repository, including provider specifications, sample payload descriptions, test-vector metadata, Salesforce constraints, and the fictional incident. The repository references contain fictional sandbox-only test secrets; no production credentials, real customer data, or real payer personal data were provided. No literal secret values or payer personal data were added to the deliverables.
+The AI assistant reviewed the fictional assessment documents in this repository, including provider specifications, sample payloads, test vectors, Salesforce constraints, and the fictional incident. The MUnit suite uses the fictional sandbox test secrets supplied by the assessment and copies of its fictional sample payloads; these values are test-only and are not runtime credentials or real personal data. No production credentials or real payer data were used.
 

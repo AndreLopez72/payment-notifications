@@ -6,7 +6,7 @@
 
 The proposed paths are `/webhooks/quetzal` and `/webhooks/andina`. The assessment does not provide route paths or the API Manager base URL. Confirm the paths with the API Manager owner and register the corresponding URLs with the providers before deployment. The paths and OpenAPI dialect are provisional and tracked in `docs/ASSUMPTIONS.md` (A-23).
 
-The contract proposes `204` after durable acceptance, including recognized duplicates; `400` for invalid signature, timestamp, or payload; and `500` when durable acceptance fails. The provider references do not specify exact error codes for invalid requests; this response mapping is provisional under A-12 in `docs/ASSUMPTIONS.md`.
+The contract proposes `204` after durable acceptance, including recognized duplicates and authenticated business-data errors recorded for operational correction without publishing a canonical event; `400` for invalid signature, timestamp, or structurally invalid payload; and `500` when durable acceptance fails. The provider references do not specify exact error codes for invalid requests; this response mapping is provisional under A-12 in `docs/ASSUMPTIONS.md`.
 
 ## Canonical event evolution
 
@@ -15,6 +15,7 @@ The contract proposes `204` after durable acceptance, including recognized dupli
 - Add optional fields without changing the meaning of existing fields within a major event version.
 - Treat removing or renaming a field, changing its meaning or type, changing a required field, or narrowing an accepted value as a breaking change that requires a new major version and consumer coordination.
 - Keep provider-specific fields out of the canonical contract unless they have a provider-independent business meaning.
+- Reject unregistered properties in the canonical event so provider-specific or personal fields cannot pass through unnoticed.
 - Never add payer personal data, payment tokens, secrets, or raw webhook bodies to the canonical event.
 - Validate producer output against the schema and coordinate proposed changes with Finance and Notifications before publishing them.
 

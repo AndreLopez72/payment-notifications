@@ -92,5 +92,5 @@
       "description": "Meridian-generated identifier for this HTTP delivery."
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

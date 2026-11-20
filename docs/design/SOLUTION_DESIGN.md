@@ -200,45 +200,52 @@ sequenceDiagram
   M->>M: Verify signature over exact raw bytes
   alt Invalid signature / timestamp
     M-->>P: 4xx response; no acceptance
-  else Valid signature and payload
-    M->>DB: Transaction: record ingestion attempt; deduplicate business event
-    alt Duplicate business event
-      DB-->>M: Persist attempt; return existing event/status
-      M-->>P: Provider-compatible 2xx
-    else Durable commit succeeds
-      Note over DB: Persist inbox + state + canonical outbox
+  else Valid signature and structurally valid payload
+    M->>M: Validate normalized business reference
+    alt Authenticated business-data error
+      M->>DB: Persist sanitized delivery attempt and correction status
       DB-->>M: Commit acknowledged
-      M-->>P: Provider-compatible 2xx (accepted)
-      O->>DB: Read pending outbox row
-      O->>SB: Publish canonical event
-      SB->>W: Deliver event
-      W->>W: Order by payment key; buffer for batch
-      W->>IDP: Obtain M2M token for internal API
-      IDP-->>W: Access token
-      W->>AP: Call Salesforce System API through API Manager
-      AP->>SF: Bulk upsert using Salesforce OAuth client credentials
-      alt Salesforce success
-        SF-->>AP: Per-record results
-        AP-->>W: Per-record results
-        W->>DB: Mark recorded / update status
-      else Retryable Salesforce failure
-        SF-->>AP: 401, lock, 5xx or API limit
-        AP-->>W: Error response
-        W->>DB: Schedule bounded retry; preserve status
-      else Permanent validation failure or exhausted retries
-        W->>DB: Transaction: mark dead-letter-pending + insert DLQ outbox row
-        O->>DB: Read pending DLQ outbox row
-        O->>D: Publish sanitized event + reason
-        O->>DB: Mark dead-lettered after broker confirmation
+      M-->>P: 204 after durable hold; no canonical publication
+    else Valid business data
+      M->>DB: Transaction: record ingestion attempt; deduplicate business event
+      alt Duplicate business event
+        DB-->>M: Persist attempt; return existing event/status
+        M-->>P: 204 after durable duplicate recognition
+      else New business event
+        Note over DB: Persist inbox + state + canonical outbox
+        DB-->>M: Commit acknowledged
+        M-->>P: 204 after durable acceptance
+        O->>DB: Read pending outbox row
+        O->>SB: Publish canonical event
+        SB->>W: Deliver event
+        W->>W: Order by payment key; buffer for batch
+        W->>IDP: Obtain M2M token for internal API
+        IDP-->>W: Access token
+        W->>AP: Call Salesforce System API through API Manager
+        AP->>SF: Bulk upsert using Salesforce OAuth client credentials
+        alt Salesforce success
+          SF-->>AP: Per-record results
+          AP-->>W: Per-record results
+          W->>DB: Mark recorded / update status
+        else Retryable Salesforce failure
+          SF-->>AP: 401, lock, 5xx or API limit
+          AP-->>W: Error response
+          W->>DB: Schedule bounded retry; preserve status
+        else Permanent validation failure or exhausted retries
+          W->>DB: Transaction: mark dead-letter-pending + insert DLQ outbox row
+          O->>DB: Read pending DLQ outbox row
+          O->>D: Publish sanitized event + reason
+          O->>DB: Mark dead-lettered after broker confirmation
+        end
+      else Durable commit fails
+        DB-->>M: Error
+        M-->>P: Non-2xx so provider retries
       end
-    else Durable commit fails
-      DB-->>M: Error
-      M-->>P: Non-2xx so provider retries
     end
   end
 ```
 
-The proposed `2xx` point is after the durable SQL commit, not after Salesforce. For Quetzal, Andina, and Austral, return `204` for newly accepted and duplicate valid notifications, within their documented deadlines; invalid signature/payload returns `4xx`. A failed durable commit returns `5xx` so provider retry behavior can recover the request. This is a proposed response policy; exact response codes for invalid payloads are not specified by provider docs.
+The proposed `2xx` point is after durable SQL commit, not after Salesforce. Return `204` for newly accepted and duplicate valid notifications, within provider deadlines. An authenticated, structurally valid notification with an invalid policy reference is durably held for correction and acknowledged with `204`; it does not create a canonical event. Invalid signatures/timestamps and structurally invalid payloads return `4xx`; durable-store failure returns `5xx` so provider retry behavior can recover. This response policy is provisional; see A-12 and A-13 in `docs/ASSUMPTIONS.md`.
 
 ### Idempotency and ordering
 

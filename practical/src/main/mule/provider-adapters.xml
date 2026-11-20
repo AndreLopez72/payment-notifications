@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:java="http://www.mulesoft.org/schema/mule/java"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <sub-flow name="verify-quetzal-signature">
+        <java:invoke-static class="com.meridian.payments.adapter.quetzal.QuetzalSignatureVerifier"
+                            method="verify(byte[],java.lang.String,java.lang.String,long)"
+                            target="signatureValid">
+            <java:args><![CDATA[#[{
+                arg0: vars.rawBody,
+                arg1: vars.signatureHeader,
+                arg2: vars.webhookSecret,
+                arg3: vars.nowEpochSeconds
+            }]]]></java:args>
+        </java:invoke-static>
+        <set-payload value="#[vars.signatureValid]" />
+    </sub-flow>
+
+    <sub-flow name="map-quetzal-event">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload resource="dw/map-quetzal.dwl" />
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="verify-andina-signature">
+        <java:invoke-static class="com.meridian.payments.adapter.andina.AndinaSignatureVerifier"
+                            method="verify(byte[],java.lang.String,java.lang.String,java.lang.String,long)"
+                            target="signatureValid">
+            <java:args><![CDATA[#[{
+                arg0: vars.rawBody,
+                arg1: vars.signatureTimestamp,
+                arg2: vars.signatureValue,
+                arg3: vars.webhookSecret,
+                arg4: vars.nowEpochSeconds
+            }]]]></java:args>
+        </java:invoke-static>
+        <set-payload value="#[vars.signatureValid]" />
+    </sub-flow>
+
+    <sub-flow name="map-andina-event">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload resource="dw/map-andina.dwl" />
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="validate-andina-policy-reference">
+        <set-variable variableName="policyReferenceValid"
+                      value="#[payload.policyNumber matches /^POL-CO-[0-9]{9}$/]" />
+    </sub-flow>
+</mule>

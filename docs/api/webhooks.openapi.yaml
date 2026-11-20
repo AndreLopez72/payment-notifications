@@ -34,11 +34,12 @@ paths:
       responses:
         '204':
           description: >-
-            The notification was durably accepted, or was recognized as a
-            duplicate of an accepted business event.
+            The notification was durably accepted, recognized as a duplicate,
+            or recorded as an authenticated business-data error for operational
+            correction without canonical publication.
         '400':
           description: >-
-            Proposed response for an invalid signature, timestamp, or payload.
+            Proposed response for an invalid signature, timestamp, or structurally invalid payload.
             Exact invalid-request response codes are not specified by Quetzal.
         '500':
           description: >-
@@ -79,11 +80,12 @@ paths:
       responses:
         '204':
           description: >-
-            The notification was durably accepted, or was recognized as a
-            duplicate of an accepted business event.
+            The notification was durably accepted, recognized as a duplicate,
+            or recorded as an authenticated business-data error for operational
+            correction without canonical publication.
         '400':
           description: >-
-            Proposed response for an invalid signature, timestamp, or payload.
+            Proposed response for an invalid signature, timestamp, or structurally invalid payload.
             Exact invalid-request response codes are not specified by Andina.
         '500':
           description: >-

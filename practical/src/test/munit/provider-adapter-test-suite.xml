@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="provider-adapter-test-suite" />
+
+    <munit:test name="quetzal-valid-provider-vector" description="Accepts the supplied Quetzal HMAC test vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader"
+                          value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-accepts-failed-charge-vector" description="Accepts the supplied failed-charge HMAC vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/quetzal/02-charge-failed.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader" value="t=1795889403,v1=d793d3da0a8d4d66e984ada3daa8b9f473a0eef153d99cdd83bb70f60f13ccc9" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795889403" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation><munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" /></munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-accepts-refund-charge-vector" description="Accepts the supplied refunded-charge HMAC vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/quetzal/03-charge-refunded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader" value="t=1795975203,v1=a61f9d88d861cd4cc63359b5ca6e6d11d55369db7079387dee9a5024ccb2cae6" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795975203" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation><munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" /></munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-accepts-300-second-boundary" description="Accepts a timestamp exactly 300 seconds from the injected clock.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader"
+                          value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795889103" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-rejects-body-mismatch" description="Rejects a valid signature when the raw body differs from the signed sample.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/02-charge-failed.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader"
+                          value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-accepts-either-rotation-signature" description="Accepts a matching v1 signature during rotation.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader"
+                          value="t=1795888803,v1=0000000000000000000000000000000000000000000000000000000000000000,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-rejects-expired-signature" description="Rejects a signature outside the 300-second tolerance.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader"
+                          value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795889104" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-rejects-malformed-signature" description="Rejects malformed signature headers.">
+        <munit:execution>
+            <set-variable variableName="rawBody"
+                          value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=not-a-signature" />
+            <set-variable variableName="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="verify-quetzal-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-maps-succeeded-event" description="Maps the supplied successful charge to the canonical event.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-001" />
+            <flow-ref name="map-quetzal-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('captured')]" />
+            <munit-tools:assert-that expression="#[payload.amount]" is="#[MunitTools::equalTo('1250.00')]" />
+            <munit-tools:assert-that expression="#[payload.refundedAmount]" is="#[MunitTools::equalTo(null)]" />
+            <munit-tools:assert-that expression="#[payload.policyNumber]" is="#[MunitTools::equalTo('POL-MX-000412785')]" />
+            <munit-tools:assert-that expression="#[payload.eventId]" is="#[MunitTools::equalTo('MX:Quetzal:evt_01JDQ3K8M2X7')]" />
+            <munit-tools:assert-that expression="#[payload.paymentKey]" is="#[MunitTools::equalTo('MX:Quetzal:c881f3570d51e1ca598f01d2339adc595fd9aeec4ce5ad2cb812dd1e5b59983f')]" />
+            <munit-tools:assert-that expression="#[payload.correlationId]" is="#[MunitTools::equalTo('test-correlation-001')]" />
+            <munit-tools:assert-that expression="#[payload.customer == null and payload.payment_method == null]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-maps-failed-event" description="Maps the supplied failed charge without changing its business state.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/02-charge-failed.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-002" />
+            <flow-ref name="map-quetzal-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('failed')]" />
+            <munit-tools:assert-that expression="#[payload.amount]" is="#[MunitTools::equalTo('980.00')]" />
+            <munit-tools:assert-that expression="#[payload.refundedAmount]" is="#[MunitTools::equalTo(null)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-maps-refund-event" description="Maps the supplied refund amount and provider state timestamp.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/03-charge-refunded.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-003" />
+            <flow-ref name="map-quetzal-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('refunded')]" />
+            <munit-tools:assert-that expression="#[payload.amount]" is="#[MunitTools::equalTo('1250.00')]" />
+            <munit-tools:assert-that expression="#[payload.refundedAmount]" is="#[MunitTools::equalTo('1250.00')]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-valid-provider-vector" description="Accepts the supplied Andina HMAC test vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-accepts-approved-provider-vector" description="Accepts the supplied approved-transaction HMAC vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/02-transaccion-aprobada.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:03:11-05:00" />
+            <set-variable variableName="signatureValue" value="MFQjfviySi6CjqbWtQcy5spKtXxHIxAvmg5W3PTzPJk=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795892591" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation><munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" /></munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-accepts-retry-provider-vector" description="Accepts the supplied approved-retry HMAC vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/03-transaccion-aprobada-reintento.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:08:11-05:00" />
+            <set-variable variableName="signatureValue" value="CNu6m5X6B9bMKTsi/IzZfGquIh/KdxTyesBtL4ax424=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795892891" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation><munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" /></munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-accepts-reversal-provider-vector" description="Accepts the supplied reversal HMAC vector.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/04-transaccion-reversada.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-12-03T09:15:42-05:00" />
+            <set-variable variableName="signatureValue" value="AfGO+MEffk0AWIEEE3cgyff4hWewoOaDhygCWxs/fNI=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1796307342" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation><munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" /></munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-accepts-600-second-boundary" description="Accepts a timestamp exactly ten minutes from the injected clock.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795893179" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-rejects-expired-signature" description="Rejects a timestamp beyond the ten-minute tolerance.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795893180" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-rejects-body-mismatch" description="Rejects a valid signature when the raw body differs from the signed sample.">
+        <munit:execution>
+            <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/02-transaccion-aprobada.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="webhookSecret" value="andina_test_secret_7c3e19ab" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <flow-ref name="verify-andina-signature" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-maps-pending-event" description="Maps the supplied pending transaction and excludes payer data.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-001" />
+            <flow-ref name="map-andina-event" />
+            <flow-ref name="validate-andina-policy-reference" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('pending')]" />
+            <munit-tools:assert-that expression="#[payload.amount]" is="#[MunitTools::equalTo('185000.00')]" />
+            <munit-tools:assert-that expression="#[payload.eventId]" is="#[MunitTools::equalTo('CO:Andina:TRX-CO-5521907:PENDIENTE')]" />
+            <munit-tools:assert-that expression="#[payload.payer == null and payload.pagador == null and payload.medio_pago == null]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[vars.policyReferenceValid]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-flags-malformed-policy-reference" description="Flags an invalid policy reference for durable operational hold, not canonical publication.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/json')]" />
+            <set-payload value="#[payload update { case .transaccion.referencia -> 'not-a-policy' }]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-invalid-policy" />
+            <flow-ref name="map-andina-event" />
+            <flow-ref name="validate-andina-policy-reference" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.policyReferenceValid]" is="#[MunitTools::equalTo(false)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-retry-keeps-business-event-identity" description="A retry has a new notification ID but the same business-event identity.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/02-transaccion-aprobada.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-002" />
+            <flow-ref name="map-andina-event" />
+            <set-variable variableName="firstEvent" value="#[payload]" />
+            <set-payload value="#[readUrl('classpath://providers/andina/03-transaccion-aprobada-reintento.json', 'application/json')]" />
+            <flow-ref name="map-andina-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.eventId == vars.firstEvent.eventId]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[payload.providerEventId != vars.firstEvent.providerEventId]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('captured')]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-maps-rejected-state" description="Maps the documented RECHAZADA state to the canonical failed state.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/json')]" />
+            <set-payload value="#[payload update { case .transaccion.estado -> 'RECHAZADA' }]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-rejected" />
+            <flow-ref name="map-andina-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('failed')]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-maps-reversal-event" description="Maps the supplied reversal to the refunded canonical state.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/04-transaccion-reversada.json', 'application/json')]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-003" />
+            <flow-ref name="map-andina-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('refunded')]" />
+            <munit-tools:assert-that expression="#[payload.refundedAmount]" is="#[MunitTools::equalTo(null)]" />
+        </munit:validation>
+    </munit:test>
+</mule>
