@@ -38,7 +38,7 @@
 ## Known gaps and what I would do next
 
 - Configure a writable Maven local repository and the required JVM-trusted certificate chain for the MuleSoft and Maven Central repositories, then rerun the Part B build/MUnit suite. Terraform 1.9.8 `fmt` and backend-disabled `init` pass; `validate` is blocked before configuration validation by the AzureRM provider's local gRPC TLS handshake error. `actionlint` v1.7.10 passed for both workflow files, but GitHub Actions workflows have not been run.
-- Confirm Azure region, SQL/Service Bus/Key Vault tiers, redundancy, workload identities, private networking, state backend, and budget with the platform owners. The monthly cost estimate remains open because these inputs are not in the assessment.
+- Review the provisional Mexico Central, SQL serverless/zone-redundant, and Service Bus Standard/IP-filtered profile in `docs/infra/AZURE_SERVICES.md`; obtain legal, platform, network, identity, load-test, and FinOps approval before treating its values or indicative cost range as production decisions.
 - Configure GitHub Environments, Azure OIDC federation, remote state, approvers, and least-privilege permissions before any deployment workflow use. No deployment has been performed.
 - Confirm Mule-to-Azure identity, network, and telemetry support; Salesforce API Manager backend-token mediation; the exact on-call destination; and the v1 DLQ replay mechanism (A-02/A-14/A-22/A-26/A-29/A-30/A-31).
 - Candidate ID, time spent, repository URL/visibility, and final submission SHA must be completed by the candidate. No real provider, Salesforce, or Azure service has been called.

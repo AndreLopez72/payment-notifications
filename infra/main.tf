@@ -31,12 +31,14 @@ resource "azurerm_mssql_server" "payments" {
 }
 
 resource "azurerm_mssql_database" "payments" {
-  name           = "sqldb-${local.base_name}"
-  server_id      = azurerm_mssql_server.payments.id
-  sku_name       = var.sql_database_sku_name
-  max_size_gb    = var.sql_max_size_gb
-  zone_redundant = var.sql_zone_redundant
-  tags           = local.common_tags
+  name                        = "sqldb-${local.base_name}"
+  server_id                   = azurerm_mssql_server.payments.id
+  sku_name                    = var.sql_database_sku_name
+  min_capacity                = var.sql_min_capacity
+  auto_pause_delay_in_minutes = var.sql_auto_pause_delay_in_minutes
+  max_size_gb                 = var.sql_max_size_gb
+  zone_redundant              = var.sql_zone_redundant
+  tags                        = local.common_tags
 }
 
 resource "azurerm_private_endpoint" "sql" {
@@ -64,10 +66,30 @@ resource "azurerm_servicebus_namespace" "payments" {
   location                      = azurerm_resource_group.payments.location
   resource_group_name           = azurerm_resource_group.payments.name
   sku                           = var.servicebus_sku
-  public_network_access_enabled = false
+  public_network_access_enabled = var.servicebus_sku == "Premium" ? false : true
   local_auth_enabled            = false
   minimum_tls_version           = "1.2"
   tags                          = local.common_tags
+
+  dynamic "network_rule_set" {
+    for_each = var.servicebus_sku == "Standard" ? [1] : []
+    content {
+      default_action                = "Deny"
+      public_network_access_enabled = true
+      ip_rules                      = var.servicebus_allowed_ip_rules
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = var.servicebus_sku != "Standard" || length(var.servicebus_allowed_ip_rules) > 0
+      error_message = "Standard Service Bus requires at least one approved fixed egress IP/CIDR rule."
+    }
+    precondition {
+      condition     = var.servicebus_sku != "Premium" || try(length(var.private_dns_zone_ids.servicebus) > 0, false)
+      error_message = "Premium Service Bus requires the approved private DNS zone ID."
+    }
+  }
 }
 
 resource "azurerm_servicebus_topic" "canonical_events" {
@@ -87,6 +109,7 @@ resource "azurerm_servicebus_subscription" "salesforce" {
 }
 
 resource "azurerm_private_endpoint" "servicebus" {
+  count               = var.servicebus_sku == "Premium" ? 1 : 0
   name                = "pe-sb-${local.base_name}"
   location            = azurerm_resource_group.payments.location
   resource_group_name = azurerm_resource_group.payments.name

@@ -165,12 +165,12 @@
 ## A-17 — Azure resource tiers and cost
 
 - **Documents affected:** Part C `docs/infra/AZURE_SERVICES.md` and IaC.
-- **Question:** Which Azure SQL and Service Bus tiers, redundancy settings, and budgets are approved for the target workload?
-- **Context:** The exercise gives traffic and one-region constraints but no SKU, pricing, availability configuration, or monthly budget.
-- **Options:** (1) Lower-cost tiers — reduce spend; may not meet burst, HA, or backlog-drain requirements. (2) Higher-throughput/redundant tiers — more headroom and resilience; increase cost and need a justified estimate.
-- **Provisional assumption used:** No SKU or cost is asserted in this design; select after throughput, recovery, and cost validation. One Azure region serves the three countries as stated in the scenario.
-- **Impact if incorrect:** Under-provisioning can miss freshness/durability objectives; over-provisioning can waste cost.
-- **Who should answer:** Azure platform/FinOps owner and Payments product owner.
+- **Question:** Do the platform and each country's privacy/legal owners approve Mexico Central as the preferred shared-region proposal and the provisional SQL/Service Bus profile in `docs/infra/AZURE_SERVICES.md`?
+- **Context:** The assessment specifies one region, traffic, and cost/resilience objectives, but does not name a region, SKU, budget, residency rule, or availability target. The design therefore needs a reasoned starting proposal while keeping approval explicit.
+- **Options:** (1) Approve the proposed Mexico Central candidate and capacity profile after legal, platform, and load-test checks — preserves a single regional deployment and zone resilience; may require changes for data-residency, latency, or measured capacity. (2) Select another single region or larger service tier — may better satisfy legal/latency/throughput policy; changes prices and capacity assumptions. (3) Defer production selection — avoids unapproved values; leaves IaC deployment inputs open.
+- **Provisional assumption used:** Select Mexico Central as the preferred region in the assessment proposal because Mexico has the largest documented share of traffic (about 45%) and the region supports three availability zones. This is not approval for production data processing. Propose Azure SQL General Purpose Gen5 serverless, 0.5–2 vCore, zone redundant, auto-pause disabled; Service Bus Standard with a topic if fixed egress IP filtering is approved and passes load tests; Key Vault Standard. Use the Premium/private Service Bus profile only if the private-network requirement or performance validation requires it. The indicative public-price model is in `docs/infra/AZURE_SERVICES.md`; no budget or Terraform deployment values are approved by this assumption.
+- **Impact if incorrect:** Cross-border processing may be impermissible, or selected capacity may fail latency/freshness objectives; changing the region or tiers changes price, connectivity, and IaC.
+- **Who should answer:** Privacy/legal owners for Mexico, Colombia, and Chile; Azure platform/network and FinOps owners; Payments product owner.
 
 ## A-18 — Operations API authorization
 
@@ -256,12 +256,12 @@
 ## A-26 — Private connectivity for Azure data and messaging services
 
 - **Documents affected:** `infra/`; `docs/infra/AZURE_SERVICES.md`; `docs/design/SOLUTION_DESIGN.md`.
-- **Question:** Can Mule 4 on the enterprise integration platform reach Azure SQL, Service Bus, and Key Vault through approved private endpoints and private DNS?
-- **Context:** The assessment requires Azure security controls and says the integration platform can run Mule 4 or front Azure services. It does not document network connectivity, DNS, subnet ownership, or private endpoint support from that platform.
-- **Options:** (1) Private endpoints with private DNS and network routing from the Mule platform — limits public exposure; depends on network connectivity and platform routing. (2) Approved public endpoints with restricted network rules — may fit the current platform path; exposes a public endpoint and requires an approved source network/control design. (3) Move the Azure-connected workload to a platform with approved private access — may resolve connectivity; changes runtime placement and requires a design decision.
-- **Provisional assumption used:** Terraform provisions private endpoints and disables public network access, referencing existing subnet and DNS zone IDs. No network resources are created by this proposal.
-- **Impact if incorrect:** The Mule applications cannot reach required services, or network controls need redesign before deployment.
-- **Who should answer:** Azure network/platform owner and enterprise integration platform owner.
+- **Question:** Can Mule provide stable approved outbound IP ranges for Service Bus Standard, or must Service Bus use Premium with a private endpoint?
+- **Context:** Service Bus private endpoints are supported only on Premium. Standard supports IP filtering and is substantially less expensive, but requires known outbound addresses. The assessment does not describe Mule egress, private routing, DNS, or a private-only policy. SQL and Key Vault remain proposed for private endpoints.
+- **Options:** (1) Standard with public endpoint restricted by deny-by-default IP filtering, TLS, Entra RBAC, and local authentication disabled — lowest estimated cost; requires stable Mule egress addresses and security approval. (2) Premium with private endpoint and public access disabled — private network path and dedicated capacity; substantially higher fixed cost and requires DNS/routing setup. (3) Change Mule runtime placement to an approved Azure-connected platform — may simplify private access; changes deployment placement and needs a separate architecture decision.
+- **Provisional assumption used:** Prefer option 1 only if platform owners provide stable egress IPs and security approves the selected-network design; otherwise use option 2. Terraform must model the choices as mutually exclusive and must not combine Standard with a private endpoint. SQL and Key Vault remain private endpoint candidates.
+- **Impact if incorrect:** Mule may be unable to connect, an unintended public path may violate policy, or the Premium option may add avoidable cost.
+- **Who should answer:** Azure network/security owner and enterprise integration platform owner.
 
 ## A-27 — Infrastructure toolchain and configurable service settings
 
@@ -316,10 +316,10 @@
 ## A-32 — Illustrative Azure cost reference case
 
 - **Documents affected:** `docs/infra/AZURE_SERVICES.md`; `infra/variables.tf`; `SUBMISSION_CHECKLIST.md`.
-- **Question:** Which Azure region, Azure SQL and Service Bus tiers, SQL redundancy and size, Key Vault tier, endpoint traffic, and Log Analytics retention/ingestion should be used for the approved monthly estimate and deployment?
-- **Context:** Part C asks for an order-of-magnitude monthly estimate, but the assessment does not select the target region, SKUs, database capacity, redundancy, endpoint traffic, logging volume/retention, or budget. Public retail rates vary by region, date, and purchase agreement.
-- **Options:** (1) Approve a platform-specific configuration and calculate with the Azure pricing calculator/catalog — estimates actual target spend; needs platform sizing and FinOps inputs. (2) Keep an explicitly illustrative public-price scenario — satisfies an order-of-magnitude estimate without selecting deployment values; has exclusions and cannot establish capacity. (3) Defer all figures — avoids provisional inputs but leaves the Part C cost deliverable incomplete.
-- **Provisional assumption used:** Use East US only as a reference-price region; price Azure SQL Database General Purpose Gen5 provisioned 2 vCore locally redundant, Service Bus Standard, and Key Vault Standard. For a 30-day peak month, use 870,000 notifications, three Service Bus operations per notification, and one Key Vault secret read per notification. Use 730 compute hours/month and public USD retail rates checked 2026-11-21. The documented `$457.08/month` priced subtotal excludes three Private Link endpoints and their data processing, SQL storage/backup, Log Analytics ingestion/retention, network transfer, taxes, and agreement discounts. A zone-redundant SQL sensitivity is separately shown. None of these provisional inputs is a Terraform default or target approval.
-- **Impact if incorrect:** Actual monthly cost may materially differ; the provisional SQL capacity, Service Bus tier, redundancy, or usage model may not satisfy measured throughput, recovery, availability, data retention, or budget needs.
-- **Who should answer:** Azure platform/infrastructure owner, FinOps owner, and Payments product owner; privacy/observability owners should confirm retention and telemetry volume.
+- **Question:** Do Azure platform, FinOps, privacy/legal, and Payments owners approve the Mexico Central public-price reference profile and its cost exclusions, or should the comparison use another region/tier?
+- **Context:** Part C requires a deliberate order-of-magnitude estimate. Traffic is documented, but actual purchase agreement, SQL utilization/storage, Private Link traffic, Key Vault access, Log Analytics ingestion/retention, and budget are not. Retail catalog prices are estimates and cannot produce a complete invoice without these quantities.
+- **Options:** (1) Use the proposed Mexico Central profile and reprice with actual platform quantities and agreement — aligns to the documented workload and keeps costs explicit; requires owner data and load-test validation. (2) Change region, SQL capacity, or Service Bus network mode — may improve residency, latency, or resilience; changes both cost and connectivity assumptions. (3) Keep the current list-price range as an order-of-magnitude estimate — completes Part C without pretending unknown charges are zero; cannot approve spend or prove capacity.
+- **Provisional assumption used:** Model a 30-day peak month at 870,000 notifications and three broker operations each; estimate SQL GP Gen5 serverless 0.5–2 vCore zone-redundant compute at about `$274–$783/month`, Service Bus Standard base at about `$10.79/month`, and Premium one-MU fallback at about `$744.78/month`, using Mexico Central public rates checked 2026-11-21. Exclude storage, backups, private endpoints/data processing, Key Vault requests, Log Analytics ingestion/retention, network transfer, Mule platform, taxes, and agreement discounts. This estimate is not a budget, capacity proof, or Terraform default.
+- **Impact if incorrect:** Actual spend may differ materially, and the chosen configuration may not pass throughput, freshness, recovery, or compliance checks.
+- **Who should answer:** Azure platform/infrastructure owner, FinOps owner, Payments product owner, privacy/legal owners, and Log Analytics owner.
 

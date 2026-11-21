@@ -302,7 +302,7 @@ Proposed alerts: oldest pending outbox > 1 minute; queue age > 3 minutes; DLQ de
 - Encrypt transport with HTTPS/TLS; restrict data access to integration and authorized operations identities. Exact network controls require IaC/security review.
 - Do not persist or emit payer PII or raw webhook payloads. Structured logs contain provider/country, safe identifiers, correlation ID, status, timestamps, delivery attempt, and sanitized error code only.
 - One Azure region serves all three countries, per scenario. Existing Azure Monitor, Application Insights, and Log Analytics are reused at platform level.
-- Azure SQL and Service Bus are selected for durable state and messaging. Tier/SKU and monthly cost require the Part C cost estimate; precise cost is **[Requires Azure pricing validation]**.
+- Azure SQL and Service Bus are selected for durable state and messaging. The provisional region, tiers, redundancy, network modes, and order-of-magnitude cost profile are in `docs/infra/AZURE_SERVICES.md`; legal/platform approval, load-test capacity, and complete pricing remain open under A-17/A-26/A-32.
 
 ### Delivery pipeline alignment
 
@@ -320,7 +320,7 @@ These are explicitly proposed and should be validated before production; they ar
 6. Confirm if FR7 must expose unauthenticated or invalid-signature deliveries (A-08).
 7. Agree on batch/retry values, API budget headroom, and Service Bus/DLQ mechanics (A-10, A-15).
 8. Approve the 90-day data retention and the Mule-to-Azure telemetry exporter (A-14, A-16).
-9. Validate Azure SQL and Service Bus throughput, availability configuration, SKU, and monthly cost (A-17).
+9. Validate the proposed Mexico Central Azure SQL and Service Bus profile against residency, connectivity, burst throughput, freshness, and actual platform pricing before approving deployment values (A-17, A-26, A-32).
 10. Confirm provider-specific response codes and policy-reference correction workflow (A-12, A-13).
 11. Confirm operational roles and audit requirements for search and replay.
 12. Approve the canonical event field set/versioning and correlation-ID propagation with API and downstream owners (A-19, A-20).

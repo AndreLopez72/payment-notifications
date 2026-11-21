@@ -45,10 +45,10 @@ variable "private_endpoint_subnet_id" {
 }
 
 variable "private_dns_zone_ids" {
-  description = "IDs of existing private DNS zones for SQL, Service Bus, and Key Vault."
+  description = "IDs of existing private DNS zones for SQL and Key Vault; the Service Bus zone is required only for Premium."
   type = object({
     sql        = string
-    servicebus = string
+    servicebus = optional(string)
     key_vault  = string
   })
 }
@@ -59,8 +59,23 @@ variable "log_analytics_workspace_id" {
 }
 
 variable "sql_database_sku_name" {
-  description = "Approved Azure SQL Database SKU name; to be selected after capacity and cost validation."
+  description = "Approved Azure SQL Database SKU name; the provisional cost profile uses General Purpose Gen5 serverless with a 2-vCore maximum."
   type        = string
+}
+
+variable "sql_min_capacity" {
+  description = "Approved minimum vCore capacity for Azure SQL serverless; the provisional profile uses 0.5."
+  type        = number
+}
+
+variable "sql_auto_pause_delay_in_minutes" {
+  description = "Approved Azure SQL serverless auto-pause delay; use -1 to disable auto-pause for the payment write path."
+  type        = number
+
+  validation {
+    condition     = var.sql_auto_pause_delay_in_minutes == -1 || var.sql_auto_pause_delay_in_minutes >= 15
+    error_message = "Use -1 to disable auto-pause or a supported delay of at least 15 minutes."
+  }
 }
 
 variable "sql_max_size_gb" {
@@ -84,13 +99,19 @@ variable "sql_entra_admin_login" {
 }
 
 variable "servicebus_sku" {
-  description = "Approved Service Bus namespace SKU. Basic does not support topics."
+  description = "Approved Service Bus namespace SKU. Standard uses an IP allowlist; Premium uses a private endpoint. Basic does not support topics."
   type        = string
 
   validation {
     condition     = contains(["Standard", "Premium"], var.servicebus_sku)
     error_message = "servicebus_sku must be Standard or Premium because the design uses a topic."
   }
+}
+
+variable "servicebus_allowed_ip_rules" {
+  description = "Approved Mule fixed egress IPv4 addresses/CIDR blocks for Standard Service Bus. Required for Standard; ignored for Premium."
+  type        = list(string)
+  default     = []
 }
 
 variable "servicebus_max_delivery_count" {
