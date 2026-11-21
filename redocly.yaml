@@ -1,0 +1,7 @@
+extends:
+  - recommended
+
+rules:
+  # The assessment does not provide API Manager base URLs or a contract license.
+  no-empty-servers: off
+  info-license: off

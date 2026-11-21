@@ -11,20 +11,12 @@ paths:
     post:
       operationId: receiveQuetzalWebhook
       summary: Receive a Quetzal Pagos payment event
+      security:
+        - quetzalSignature: []
       description: >-
         Verify Quetzal-Signature against the exact request-body bytes before
         parsing or mapping the payload. Return success only after the
         validated event and its outbox entry have been durably accepted.
-      parameters:
-        - name: Quetzal-Signature
-          in: header
-          required: true
-          description: >-
-            Quetzal HMAC-SHA256 signature over
-            `<unix_timestamp>.<raw_body>` using the provider's documented
-            header format. During secret rotation, accept any valid v1 value.
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -52,6 +44,8 @@ paths:
     post:
       operationId: receiveAndinaWebhook
       summary: Receive an Andina Pay payment notification
+      security:
+        - andinaSignature: []
       description: >-
         Verify X-Andina-Signature against the exact request-body bytes and
         X-Andina-Timestamp before parsing or mapping the payload. Return
@@ -65,14 +59,6 @@ paths:
           schema:
             type: string
             format: date-time
-        - name: X-Andina-Signature
-          in: header
-          required: true
-          description: >-
-            Base64-encoded HMAC-SHA256 of
-            `<X-Andina-Timestamp>.<raw_body>` using the merchant secret.
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -97,6 +83,24 @@ paths:
           description: Unexpected listener error; the provider should retry.
 
 components:
+  securitySchemes:
+    quetzalSignature:
+      type: apiKey
+      in: header
+      name: Quetzal-Signature
+      description: >-
+        Required provider HMAC-SHA256 signature in
+        `t=<unix_timestamp>,v1=<lowercase_hex_signature>` format. Verify over
+        `<unix_timestamp>.<raw_body>` using the exact received bytes. During
+        secret rotation, accept any valid v1 value.
+    andinaSignature:
+      type: apiKey
+      in: header
+      name: X-Andina-Signature
+      description: >-
+        Required Base64-encoded HMAC-SHA256 signature over
+        `<X-Andina-Timestamp>.<raw_body>` using the exact received bytes and
+        the required timestamp header.
   schemas:
     QuetzalWebhook:
       type: object
@@ -187,7 +191,6 @@ components:
               additionalProperties: true
           additionalProperties: true
       additionalProperties: true
-
     AndinaWebhook:
       type: object
       description: >-
@@ -268,7 +271,3 @@ components:
               additionalProperties: true
           additionalProperties: true
       additionalProperties: true
-
-  # Provider authentication is an HMAC header scheme described per operation.
-  # API Manager routing/base URLs are intentionally omitted; their values are
-  # not specified by the assessment.

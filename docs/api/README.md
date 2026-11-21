@@ -6,6 +6,8 @@
 
 The proposed paths are `/webhooks/quetzal` and `/webhooks/andina`. The assessment does not provide route paths or the API Manager base URL. Confirm the paths with the API Manager owner and register the corresponding URLs with the providers before deployment. The paths and OpenAPI dialect are provisional and tracked in `docs/ASSUMPTIONS.md` (A-23).
 
+Each operation declares its provider-specific HMAC signature header as an OpenAPI security scheme. The `apiKey` scheme describes how the signature is carried in the header; the provider specification and operation description define the HMAC calculation and raw-byte verification. The repository-level `redocly.yaml` keeps the recommended lint rules except `no-empty-servers` and `info-license`: the assessment specifies neither an API Manager base URL nor a license for this contract. Set those values and restore the rules when the API Manager owner and repository owner supply them.
+
 The contract proposes `204` after durable acceptance, including recognized duplicates and authenticated business-data errors recorded for operational correction without publishing a canonical event; `400` for invalid signature, timestamp, or structurally invalid payload; and `503` when a secret or durable acceptance is unavailable. Unexpected listener errors default to `500`. The provider references do not specify exact error codes for invalid requests; this response mapping is provisional under A-12 in `docs/ASSUMPTIONS.md`.
 
 ## Canonical event evolution
