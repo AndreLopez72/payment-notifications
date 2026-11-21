@@ -18,5 +18,6 @@ The contract proposes `204` after durable acceptance, including recognized dupli
 - Reject unregistered properties in the canonical event so provider-specific or personal fields cannot pass through unnoticed.
 - Never add payer personal data, payment tokens, secrets, or raw webhook bodies to the canonical event.
 - Validate producer output against the schema and coordinate proposed changes with Finance and Notifications before publishing them.
+- Part B's Mule intake validates each mapped canonical event against this Draft 2020-12 schema before it can reach the persistence port. The implementation loads this file as a classpath resource from the Maven build, so the documented contract remains the validation source.
 
 The field set, requiredness, versioning rule, OpenAPI dialect, and JSON Schema dialect are proposals where the assessment does not prescribe a value. Track them in `docs/ASSUMPTIONS.md` (A-19 and A-23).

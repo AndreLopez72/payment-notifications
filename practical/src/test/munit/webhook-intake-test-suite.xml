@@ -24,6 +24,57 @@
         <set-variable variableName="durableAccepted" value="#[true]" />
     </flow>
 
+    <munit:test name="canonical-schema-rejects-unsupported-status"
+                description="Rejects a canonical event whose status is outside the shared event contract."
+                expectedErrorType="JSON:SCHEMA_NOT_HONOURED">
+        <munit:execution>
+            <set-payload mimeType="application/json" value="#[{
+                schemaVersion: '1.0',
+                eventId: 'quetzal:evt-schema-status',
+                country: 'MX',
+                provider: 'Quetzal',
+                providerEventId: 'evt-schema-status',
+                providerTransactionId: 'txn-schema-status',
+                paymentKey: 'MX:txn-schema-status',
+                policyNumber: 'POL-MX-123456789',
+                status: 'settled',
+                amount: '125.00',
+                refundedAmount: null,
+                currency: 'MXN',
+                stateChangedAt: '2026-11-20T12:00:00Z',
+                receivedAt: '2026-11-20T12:00:01Z',
+                correlationId: 'test-schema-status'
+            }]" />
+            <flow-ref name="validate-quetzal-canonical-event" />
+        </munit:execution>
+    </munit:test>
+
+    <munit:test name="canonical-schema-rejects-additional-properties"
+                description="Rejects canonical event fields that are not defined by the shared event contract."
+                expectedErrorType="JSON:SCHEMA_NOT_HONOURED">
+        <munit:execution>
+            <set-payload mimeType="application/json" value="#[{
+                schemaVersion: '1.0',
+                eventId: 'quetzal:evt-schema-extra',
+                country: 'MX',
+                provider: 'Quetzal',
+                providerEventId: 'evt-schema-extra',
+                providerTransactionId: 'txn-schema-extra',
+                paymentKey: 'MX:txn-schema-extra',
+                policyNumber: 'POL-MX-123456789',
+                status: 'captured',
+                amount: '125.00',
+                refundedAmount: null,
+                currency: 'MXN',
+                stateChangedAt: '2026-11-20T12:00:00Z',
+                receivedAt: '2026-11-20T12:00:01Z',
+                correlationId: 'test-schema-extra',
+                payerEmail: 'must-not-be-accepted@example.invalid'
+            }]" />
+            <flow-ref name="validate-quetzal-canonical-event" />
+        </munit:execution>
+    </munit:test>
+
     <munit:test name="quetzal-valid-event-is-durably-accepted" description="Returns 204 only after the persistence port confirms acceptance.">
         <munit:behavior>
             <munit-tools:mock-when processor="mule:flow-ref">

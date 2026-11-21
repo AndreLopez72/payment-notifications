@@ -17,6 +17,7 @@
         <mule.runtime.version>4.9.9</mule.runtime.version>
         <mule.maven.plugin.version>4.10.4</mule.maven.plugin.version>
         <munit.version>3.7.6</munit.version>
+        <json.module.version>2.5.11</json.module.version>
         <http.connector.version>1.12.2</http.connector.version>
         <java.module.version>2.0.8</java.module.version>
     </properties>
@@ -38,6 +39,12 @@
     </pluginRepositories>
 
     <dependencies>
+        <dependency>
+            <groupId>org.mule.modules</groupId>
+            <artifactId>mule-json-module</artifactId>
+            <version>${json.module.version}</version>
+            <classifier>mule-plugin</classifier>
+        </dependency>
         <dependency>
             <groupId>org.mule.connectors</groupId>
             <artifactId>mule-http-connector</artifactId>
@@ -67,6 +74,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../docs/api/events</directory>
+                <includes>
+                    <include>premium-payment.schema.json</include>
+                </includes>
+                <targetPath>api/events</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.mule.tools.maven</groupId>

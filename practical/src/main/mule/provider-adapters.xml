@@ -2,10 +2,12 @@
 <mule xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xmlns:java="http://www.mulesoft.org/schema/mule/java"
+      xmlns:json="http://www.mulesoft.org/schema/mule/json"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
       xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+        http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
     <sub-flow name="verify-quetzal-signature">
@@ -36,8 +38,9 @@
     </sub-flow>
 
     <sub-flow name="validate-quetzal-canonical-event">
+        <json:validate-schema schema="api/events/premium-payment.schema.json" />
         <set-variable variableName="eventValid"
-                      value="#[payload.schemaVersion == '1.0' and payload.eventId != null and payload.providerEventId != null and payload.providerTransactionId != null and payload.paymentKey != null and payload.status != null and payload.country == 'MX' and payload.provider == 'Quetzal' and payload.currency == 'MXN' and (payload.amount matches /^[0-9]+\.[0-9]{2}$/) and (payload.refundedAmount == null or payload.refundedAmount matches /^[0-9]+\.[0-9]{2}$/) and payload.stateChangedAt != null and payload.receivedAt != null and payload.correlationId != null]" />
+                      value="#[payload.country == 'MX' and payload.provider == 'Quetzal' and payload.currency == 'MXN']" />
     </sub-flow>
 
     <sub-flow name="verify-andina-signature">
@@ -69,7 +72,8 @@
     </sub-flow>
 
     <sub-flow name="validate-andina-canonical-event">
+        <json:validate-schema schema="api/events/premium-payment.schema.json" />
         <set-variable variableName="eventValid"
-                      value="#[payload.schemaVersion == '1.0' and payload.eventId != null and payload.providerEventId != null and payload.providerTransactionId != null and payload.paymentKey != null and payload.status != null and payload.country == 'CO' and payload.provider == 'Andina' and payload.currency == 'COP' and (payload.amount matches /^[0-9]+\.[0-9]{2}$/) and payload.refundedAmount == null and payload.stateChangedAt != null and payload.receivedAt != null and payload.correlationId != null]" />
+                      value="#[payload.country == 'CO' and payload.provider == 'Andina' and payload.currency == 'COP']" />
     </sub-flow>
 </mule>

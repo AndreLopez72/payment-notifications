@@ -4,11 +4,14 @@
 
 - Mule runtime: 4.9.9
 - Java runtime: 17
+- JSON Module: 2.5.11
 - HTTP Connector: 1.12.2
 - Java Module: 2.0.8
 - MUnit: 3.7.6
 - Mule Maven Plugin: 4.10.4
 - Maven: 3.10.0
+
+The canonical event is validated with JSON Module 2.5.11 against the Draft 2020-12 contract. Maven packages the schema from `docs/api/events/premium-payment.schema.json` as a classpath resource, keeping the API contract as the single source of truth. MuleSoft documents support for Draft 2020-12 and Mule 4.1.1 or later in the [JSON Module schema validation guide](https://docs.mulesoft.com/json-module/latest/json-schema-validation).
 
 The assessment accepts Java 21 with Spring Boot 3 or Azure Functions as an alternative implementation stack. This practical project follows the selected Mule 4 reference stack in ADR-0002, so its Java module targets the Java version supported by the selected Mule runtime. These versions are a provisional, compatibility-based selection; see A-24 in `docs/ASSUMPTIONS.md`. The MuleSoft documentation consulted includes the [Mule runtime Java support matrix](https://docs.mulesoft.com/release-notes/mule-runtime/java-adoption), [Mule Maven Plugin release notes](https://docs.mulesoft.com/release-notes/mule-maven-plugin/mule-maven-plugin-4.10.4-release-notes), [MUnit 3.7.6 compatibility](https://docs.mulesoft.com/release-notes/munit/munit-3.7.6-release-notes), [HTTP Connector 1.12.2 release notes](https://docs.mulesoft.com/release-notes/connector/connector-http), [Java Module reference](https://docs.mulesoft.com/java-module/latest/), [DataWeave hexadecimal conversion](https://docs.mulesoft.com/dataweave/latest/dw-binaries-functions-tohex), and [DataWeave timezone conversion](https://docs.mulesoft.com/dataweave/latest/dataweave-cookbook-change-time-zone).
 
@@ -28,12 +31,12 @@ The build was attempted with Java 17.0.21.1 (Zulu) and Maven 3.10.1. Maven's def
 - `src/main/java/com/meridian/payments/adapter/andina/AndinaSignatureVerifier.java` — Andina raw-body HMAC verification and timestamp tolerance.
 - `src/main/resources/dw/map-quetzal.dwl` — Quetzal provider payload to canonical payment-event mapping.
 - `src/main/resources/dw/map-andina.dwl` — Andina provider payload to canonical payment-event mapping.
-- `src/main/mule/provider-adapters.xml` — Mule subflow boundaries for both providers' signature verification and event mapping.
+- `src/main/mule/provider-adapters.xml` — provider signature verification, canonical JSON Schema validation, provider/country/currency checks, and mapping boundaries.
 - `src/main/mule/webhook-intake.xml` — local HTTP endpoints and shared signature, mapping, validation, and acknowledgement orchestration.
 - `src/main/mule/integration-ports.xml` — fail-closed placeholders for secret retrieval and durable persistence.
 - `src/main/mule/outbox-dispatch.xml` — canonical outbox dispatch boundary with stable event message IDs and acknowledgement handling.
 - `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers.
-- `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, repeated-event deduplication, invalid signatures, persistence failure, and Andina business-data holds.
+- `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, canonical schema enum/additional-property rejection, repeated-event deduplication, invalid signatures, persistence failure, and Andina business-data holds.
 - `src/test/munit/outbox-dispatch-test-suite.xml` — broker acknowledgement, publish-failure, and outbox-status update cases.
 - `src/test/resources/providers/quetzal/` — byte-for-byte copies of the fictional Quetzal test samples used by the signature tests.
 - `src/test/resources/providers/andina/` — byte-for-byte copies of the fictional Andina test samples used by signature and mapping tests.
@@ -51,6 +54,6 @@ When a runtime secret provider and durable store are configured, the local liste
 - Java 17.0.21.1 and Maven 3.10.1 are installed. Build and MUnit execution remain unverified because Maven could not resolve the Mule Maven Plugin: the default local repository was not writable, and the retry was blocked by JVM TLS certificate validation for the configured artifact repositories.
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
 - The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
-- Runtime validation checks canonical required values and the documented policy-reference format, but full JSON Schema validation is not wired into the flow yet.
+- Canonical schema validation cases are authored but remain unexecuted until Maven can validate the configured artifact repository certificate chain.
 - The outbox dispatcher has no SQL poller or real broker connector; broker acknowledgement and status transitions are exercised only through MUnit stubs.
 - No Azure deployment or real external call is made.
