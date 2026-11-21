@@ -52,7 +52,7 @@
             <classifier>mule-plugin</classifier>
         </dependency>
         <dependency>
-            <groupId>org.mule.modules</groupId>
+            <groupId>org.mule.module</groupId>
             <artifactId>mule-java-module</artifactId>
             <version>${java.module.version}</version>
             <classifier>mule-plugin</classifier>
