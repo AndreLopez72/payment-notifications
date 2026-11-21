@@ -7,6 +7,7 @@
 | Field | Value |
 |---|---|
 | Candidate ID (provided by your recruiter) | [Not provided] |
+| Repository URL (from Git remote) | https://github.com/AndreLopez72/payment-notifications |
 | Final commit SHA | [Record the repository HEAD selected for submission] |
 | Date and time of submission (with time zone) | [Not submitted] |
 
@@ -37,8 +38,9 @@
 
 ## Known gaps and what I would do next
 
+- On 2026-11-21, a local `mvn clean verify` attempt with Java 17.0.21.1, Maven 3.10.1, and a writable temporary cache stopped before compilation because the JVM rejected the repository TLS certificate chain. Repeating outside the sandbox produced the same result. Both Java signature adapters compiled directly with `javac --release 17`, and a temporary harness passed one supplied valid vector and one expiry case for each provider. The integrated MUnit cases are authored and the XML parses, but they have not run. The audit follow-up commits are local; CI has not run against them because they have not been pushed.
 - Rerun CI with the documented public MuleSoft repositories to verify the Part B build/MUnit suite and CodeQL. If a required dependency remains unavailable without Enterprise access, report the build as unverified. For local Maven builds, use a writable cache and a JVM-trusted certificate chain. Terraform 1.9.8 `fmt` and backend-disabled `init` passed previously; local `validate` is blocked before schema validation by the AzureRM provider's local gRPC TLS handshake. GitHub Actions reached Terraform validation but failed on AzureRM 5.2.0 Key Vault RBAC and diagnostic metric schema names; fixes are committed and a successful rerun is pending. `actionlint` v1.7.10 passed for both workflow files.
 - Review the provisional Mexico Central, SQL serverless/zone-redundant, and Service Bus Standard/IP-filtered profile in `docs/infra/AZURE_SERVICES.md`; obtain legal, platform, network, identity, load-test, and FinOps approval before treating its values or indicative cost range as production decisions.
 - Configure GitHub Environments, Azure OIDC federation, remote state, approvers, and least-privilege permissions before any deployment workflow use. No deployment has been performed.
 - Confirm Mule-to-Azure identity, network, and telemetry support; Salesforce API Manager backend-token mediation; the exact on-call destination; and the v1 DLQ replay mechanism (A-02/A-14/A-22/A-26/A-29/A-30/A-31).
-- Candidate ID, time spent, repository URL/visibility, and final submission SHA must be completed by the candidate. No real provider, Salesforce, or Azure service has been called.
+- Candidate ID, time spent, repository visibility, and final submission SHA must be completed or verified by the candidate. The repository URL comes from the configured Git remote. No real provider, Salesforce, or Azure service has been called.
