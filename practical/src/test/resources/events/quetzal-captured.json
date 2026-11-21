@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0",
+  "eventId": "MX:Quetzal:evt_01JDQ3K8M2X7",
+  "country": "MX",
+  "provider": "Quetzal",
+  "providerEventId": "evt_01JDQ3K8M2X7",
+  "providerTransactionId": "ch_7Hk2Lm9QpZ",
+  "paymentKey": "MX:Quetzal:c881f3570d51e1ca598f01d2339adc595fd9aeec4ce5ad2cb812dd1e5b59983f",
+  "policyNumber": "POL-MX-000412785",
+  "status": "captured",
+  "amount": "1250.00",
+  "refundedAmount": null,
+  "currency": "MXN",
+  "stateChangedAt": "2026-11-28T17:59:56Z",
+  "receivedAt": "2026-11-20T12:00:00Z",
+  "correlationId": "test-outbox-correlation-001"
+}

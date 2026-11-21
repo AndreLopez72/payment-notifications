@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+    <sub-flow name="dispatch-canonical-outbox-record">
+        <set-variable variableName="messageId" value="#[payload.eventId]" />
+        <set-variable variableName="brokerAccepted" value="#[false]" />
+        <try>
+            <flow-ref name="publish-canonical-event" />
+            <choice>
+                <when expression="#[vars.brokerAccepted == true]">
+                    <set-variable variableName="outboxMarked" value="#[false]" />
+                    <flow-ref name="mark-canonical-outbox-published" />
+                    <choice>
+                        <when expression="#[vars.outboxMarked == true]">
+                            <set-variable variableName="dispatchStatus" value="#[ 'PUBLISHED' ]" />
+                        </when>
+                        <otherwise>
+                            <set-variable variableName="dispatchStatus" value="#[ 'PUBLISH_CONFIRMATION_PENDING' ]" />
+                        </otherwise>
+                    </choice>
+                </when>
+                <otherwise>
+                    <set-variable variableName="dispatchStatus" value="#[ 'PENDING' ]" />
+                </otherwise>
+            </choice>
+            <error-handler>
+                <on-error-continue type="ANY" logException="false">
+                    <set-variable variableName="dispatchStatus" value="#[ 'PENDING' ]" />
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+</mule>

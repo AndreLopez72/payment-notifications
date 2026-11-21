@@ -264,7 +264,7 @@ The payment-key format and equal-timestamp conflict handling are design assumpti
 | Invalid schema/policy reference | Persist sanitized failed status for operational lookup; no blind Salesforce retry. Correct source/reference data, then replay the canonical record through the same idempotent path. |
 | Duplicate notification | Do not create a second business event or outbox entry; return provider-compatible 2xx after confirming the original durable record exists. |
 | SQL unavailable / commit fails | Return 5xx; do not acknowledge. Provider retries according to its documented delivery policy. |
-| Service Bus publish failure | Outbox publisher retries with exponential backoff; outbox remains pending and is not deleted until broker acknowledgment. |
+| Service Bus publish failure | Outbox publisher retries with exponential backoff; outbox remains pending and is not deleted until broker acknowledgment. Use canonical `eventId` as the message ID and make consumers idempotent by `eventId` because acknowledgment persistence can fail after broker acceptance (A-25). |
 | Salesforce 5xx, `UNABLE_TO_LOCK_ROW` | Retry with exponential backoff and jitter; keep work durable. |
 | Salesforce 401 | Refresh OAuth token once, then retry; cache tokens for approximately two hours. |
 | Salesforce `REQUEST_LIMIT_EXCEEDED` | Pause Salesforce consumption, honor cooldown based on API usage recovery; alert and retain backlog. |

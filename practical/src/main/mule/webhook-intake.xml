@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+
+    <http:listener-config name="webhook-listener-config">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+
+    <flow name="quetzal-webhook-listener">
+        <http:listener config-ref="webhook-listener-config"
+                       path="/webhooks/quetzal"
+                       allowedMethods="POST">
+            <http:response statusCode="#[vars.responseStatus default 500]" />
+            <http:error-response statusCode="#[vars.responseStatus default 500]">
+                <http:body><![CDATA[#[null]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="rawBody" value="#[payload as Binary]" />
+        <set-variable variableName="signatureHeader"
+                      value="#[attributes.headers.'Quetzal-Signature' default '']" />
+        <set-variable variableName="nowEpochSeconds" value="#[floor(now() as Number)]" />
+        <set-variable variableName="correlationId" value="#[uuid()]" />
+        <flow-ref name="process-quetzal-webhook" />
+        <set-payload value="#[null]" />
+    </flow>
+
+    <flow name="andina-webhook-listener">
+        <http:listener config-ref="webhook-listener-config"
+                       path="/webhooks/andina"
+                       allowedMethods="POST">
+            <http:response statusCode="#[vars.responseStatus default 500]" />
+            <http:error-response statusCode="#[vars.responseStatus default 500]">
+                <http:body><![CDATA[#[null]]]></http:body>
+            </http:error-response>
+        </http:listener>
+        <set-variable variableName="rawBody" value="#[payload as Binary]" />
+        <set-variable variableName="signatureTimestamp"
+                      value="#[attributes.headers.'X-Andina-Timestamp' default '']" />
+        <set-variable variableName="signatureValue"
+                      value="#[attributes.headers.'X-Andina-Signature' default '']" />
+        <set-variable variableName="nowEpochSeconds" value="#[floor(now() as Number)]" />
+        <set-variable variableName="correlationId" value="#[uuid()]" />
+        <flow-ref name="process-andina-webhook" />
+        <set-payload value="#[null]" />
+    </flow>
+
+    <sub-flow name="process-quetzal-webhook">
+        <flow-ref name="load-quetzal-secret" />
+        <flow-ref name="verify-quetzal-signature" />
+        <set-variable variableName="signatureValid"
+                      value="#[vars.secretAvailable == true and payload == true]" />
+        <choice>
+            <when expression="#[vars.secretAvailable != true]">
+                <set-variable variableName="responseStatus" value="#[503]" />
+            </when>
+            <when expression="#[vars.signatureValid]">
+                <try>
+                    <set-payload value="#[read(vars.rawBody, 'application/json')]" />
+                    <flow-ref name="map-quetzal-event" />
+                    <flow-ref name="validate-quetzal-canonical-event" />
+                    <choice>
+                        <when expression="#[vars.eventValid]">
+                            <flow-ref name="validate-quetzal-policy-reference" />
+                            <flow-ref name="clear-sensitive-request-context" />
+                            <choice>
+                                <when expression="#[vars.policyReferenceValid]">
+                                    <flow-ref name="safe-persist-canonical-event" />
+                                </when>
+                                <otherwise>
+                                    <flow-ref name="safe-persist-business-data-error" />
+                                </otherwise>
+                            </choice>
+                        </when>
+                        <otherwise>
+                            <set-variable variableName="responseStatus" value="#[400]" />
+                        </otherwise>
+                    </choice>
+                    <error-handler>
+                        <on-error-continue type="ANY" logException="false">
+                            <set-variable variableName="responseStatus" value="#[400]" />
+                        </on-error-continue>
+                    </error-handler>
+                </try>
+            </when>
+            <otherwise>
+                <set-variable variableName="responseStatus" value="#[400]" />
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <sub-flow name="process-andina-webhook">
+        <flow-ref name="load-andina-secret" />
+        <flow-ref name="verify-andina-signature" />
+        <set-variable variableName="signatureValid"
+                      value="#[vars.secretAvailable == true and payload == true]" />
+        <choice>
+            <when expression="#[vars.secretAvailable != true]">
+                <set-variable variableName="responseStatus" value="#[503]" />
+            </when>
+            <when expression="#[vars.signatureValid]">
+                <try>
+                    <set-payload value="#[read(vars.rawBody, 'application/json')]" />
+                    <flow-ref name="map-andina-event" />
+                    <flow-ref name="validate-andina-canonical-event" />
+                    <choice>
+                        <when expression="#[vars.eventValid]">
+                            <flow-ref name="validate-andina-policy-reference" />
+                            <flow-ref name="clear-sensitive-request-context" />
+                            <choice>
+                                <when expression="#[vars.policyReferenceValid]">
+                                    <flow-ref name="safe-persist-canonical-event" />
+                                </when>
+                                <otherwise>
+                                    <flow-ref name="safe-persist-business-data-error" />
+                                </otherwise>
+                            </choice>
+                        </when>
+                        <otherwise>
+                            <set-variable variableName="responseStatus" value="#[400]" />
+                        </otherwise>
+                    </choice>
+                    <error-handler>
+                        <on-error-continue type="ANY" logException="false">
+                            <set-variable variableName="responseStatus" value="#[400]" />
+                        </on-error-continue>
+                    </error-handler>
+                </try>
+            </when>
+            <otherwise>
+                <set-variable variableName="responseStatus" value="#[400]" />
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <sub-flow name="safe-persist-canonical-event">
+        <try>
+            <set-variable variableName="durableAccepted" value="#[false]" />
+            <flow-ref name="persist-canonical-event" />
+            <set-variable variableName="responseStatus"
+                          value="#[if (vars.durableAccepted) 204 else 503]" />
+            <error-handler>
+                <on-error-continue type="ANY" logException="false">
+                    <set-variable variableName="responseStatus" value="#[503]" />
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+
+    <sub-flow name="safe-persist-business-data-error">
+        <try>
+            <set-variable variableName="durableAccepted" value="#[false]" />
+            <flow-ref name="persist-business-data-error" />
+            <set-variable variableName="responseStatus"
+                          value="#[if (vars.durableAccepted) 204 else 503]" />
+            <error-handler>
+                <on-error-continue type="ANY" logException="false">
+                    <set-variable variableName="responseStatus" value="#[503]" />
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+
+    <sub-flow name="clear-sensitive-request-context">
+        <remove-variable variableName="rawBody" />
+        <remove-variable variableName="webhookSecret" />
+        <remove-variable variableName="signatureHeader" />
+        <remove-variable variableName="signatureTimestamp" />
+        <remove-variable variableName="signatureValue" />
+        <remove-variable variableName="signatureValid" />
+        <remove-variable variableName="secretAvailable" />
+        <remove-variable variableName="nowEpochSeconds" />
+    </sub-flow>
+</mule>

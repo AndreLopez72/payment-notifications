@@ -38,7 +38,7 @@
 - **Question:** Is a committed Azure SQL inbox/outbox transaction an acceptable durability boundary for returning provider `2xx`?
 - **Context:** NFR3 defines acceptance as `2xx`; provider timeouts are 5–10 seconds; Salesforce availability is about 97%.
 - **Options:** (1) Acknowledge after SQL commit and process Salesforce asynchronously — decouples provider delivery from Salesforce; depends on SQL durability and recovery. (2) Acknowledge only after Salesforce — simpler visibility semantics; risks provider timeout and does not tolerate Salesforce outages for intake.
-- **Provisional assumption used:** Return `2xx` only after the validated event and outbox row commit; Salesforce updates happen asynchronously.
+- **Provisional assumption used:** Return `2xx` only after a durable database commit: the validated event and outbox row for valid notifications, or a sanitized delivery-attempt hold for authenticated business-data errors under A-12. Salesforce updates happen asynchronously; a held business-data error does not enter the canonical outbox.
 - **Impact if incorrect:** Accepted notifications may not meet durability or provider response-time expectations.
 - **Who should answer:** Payments Integration product owner and platform/Salesforce teams.
 
@@ -236,9 +236,19 @@
 
 - **Documents affected:** `practical/pom.xml`; `practical/mule-artifact.json`; `practical/README.md`; Part B CI configuration.
 - **Question:** Are the proposed Mule runtime and build/test versions available in the candidate environment and acceptable for the target platform?
-- **Context:** The assessment specifies Mule 4, DataWeave, and MUnit as the reference stack but no versions. The current workspace does not expose Java or Maven executables, so local build and MUnit execution cannot yet be confirmed. Official MuleSoft compatibility information was consulted to choose a compatible provisional set.
+- **Context:** The assessment specifies Mule 4, DataWeave, and MUnit as the reference stack but no versions. Java 21 is accepted for the alternative Spring Boot/Azure Functions implementation; ADR-0002 selects Mule 4 for this proposal. The current workspace does not expose Java or Maven executables, so local build and MUnit execution cannot yet be confirmed. Official MuleSoft compatibility information was consulted to choose a compatible provisional set.
 - **Options:** (1) Use Mule 4.9.9, Java 17, HTTP Connector 1.12.2, Java Module 2.0.8, MUnit 3.7.6, Mule Maven Plugin 4.10.4, and Maven 3.10.0 — based on current documented compatibility; requires those tools/dependencies to be available. (2) Use the exact versions bundled or approved by the candidate's Anypoint Code Builder/Studio environment — aligns to that environment; requires its version details and may require updating the POM.
 - **Provisional assumption used:** Use option 1 for the assessment implementation. Treat this as a build choice, not a requirement stated by the scenario; revise only if the available Anypoint environment or dependency access requires it.
 - **Impact if incorrect:** The application may not build or tests may not execute in the available environment until compatible versions and dependencies are confirmed.
 - **Who should answer:** Candidate and MuleSoft platform/tooling owner.
+
+## A-25 — At-least-once outbox delivery and consumer deduplication
+
+- **Documents affected:** `docs/design/SOLUTION_DESIGN.md`; `practical/src/main/mule/outbox-dispatch.xml`; Service Bus IaC and consumer contracts.
+- **Question:** Will Service Bus duplicate detection be enabled for canonical events, or must every consumer deduplicate by `eventId`?
+- **Context:** The SQL outbox remains pending if the broker accepts a message but the publisher cannot record that confirmation. A retry can therefore publish the same canonical event more than once. The assessment does not specify broker duplicate-detection settings or consumer idempotency behavior.
+- **Options:** (1) Configure broker duplicate detection using deterministic `MessageId = eventId` — reduces duplicate delivery within the broker's configured window; depends on supported/approved Service Bus settings and a suitable retention window. (2) Require consumer-side deduplication by `eventId` — covers replay and longer delays; requires all consumers to store/check event identity. (3) Use both — gives layered protection; adds configuration and consumer work.
+- **Provisional assumption used:** Publish with `MessageId` set to the canonical `eventId`, leave an unconfirmed outbox record retryable, and require consumers to treat repeated `eventId` values idempotently. The practical test stub verifies the stable message ID but does not model broker deduplication or downstream consumers.
+- **Impact if incorrect:** A retry after uncertain broker confirmation could repeat downstream processing.
+- **Who should answer:** Azure messaging owner and Finance/Notifications consumer owners.
 

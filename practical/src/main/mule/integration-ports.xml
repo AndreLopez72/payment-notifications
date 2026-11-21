@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+    <!-- Fail-closed local boundaries. MUnit replaces these with controlled test doubles. -->
+    <sub-flow name="load-quetzal-secret">
+        <set-variable variableName="webhookSecret" value="#[null]" />
+        <set-variable variableName="secretAvailable" value="#[false]" />
+    </sub-flow>
+
+    <sub-flow name="load-andina-secret">
+        <set-variable variableName="webhookSecret" value="#[null]" />
+        <set-variable variableName="secretAvailable" value="#[false]" />
+    </sub-flow>
+
+    <sub-flow name="persist-canonical-event">
+        <set-variable variableName="durableAccepted" value="#[false]" />
+    </sub-flow>
+
+    <sub-flow name="persist-business-data-error">
+        <set-variable variableName="durableAccepted" value="#[false]" />
+    </sub-flow>
+
+    <sub-flow name="publish-canonical-event">
+        <set-variable variableName="brokerAccepted" value="#[false]" />
+    </sub-flow>
+
+    <sub-flow name="mark-canonical-outbox-published">
+        <set-variable variableName="outboxMarked" value="#[false]" />
+    </sub-flow>
+</mule>

@@ -10,7 +10,7 @@
 - Mule Maven Plugin: 4.10.4
 - Maven: 3.10.0
 
-These versions are a provisional, compatibility-based selection for this assessment; its documents do not prescribe exact versions. See A-24 in `docs/ASSUMPTIONS.md`. The MuleSoft documentation consulted includes the [Mule runtime Java support matrix](https://docs.mulesoft.com/release-notes/mule-runtime/java-adoption), [Mule Maven Plugin release notes](https://docs.mulesoft.com/release-notes/mule-maven-plugin/mule-maven-plugin-4.10.4-release-notes), [MUnit 3.7.6 compatibility](https://docs.mulesoft.com/release-notes/munit/munit-3.7.6-release-notes), [HTTP Connector 1.12.2 release notes](https://docs.mulesoft.com/release-notes/connector/connector-http), [Java Module reference](https://docs.mulesoft.com/java-module/latest/), [DataWeave hexadecimal conversion](https://docs.mulesoft.com/dataweave/latest/dw-binaries-functions-tohex), and [DataWeave timezone conversion](https://docs.mulesoft.com/dataweave/latest/dataweave-cookbook-change-time-zone).
+The assessment accepts Java 21 with Spring Boot 3 or Azure Functions as an alternative implementation stack. This practical project follows the selected Mule 4 reference stack in ADR-0002, so its Java module targets the Java version supported by the selected Mule runtime. These versions are a provisional, compatibility-based selection; see A-24 in `docs/ASSUMPTIONS.md`. The MuleSoft documentation consulted includes the [Mule runtime Java support matrix](https://docs.mulesoft.com/release-notes/mule-runtime/java-adoption), [Mule Maven Plugin release notes](https://docs.mulesoft.com/release-notes/mule-maven-plugin/mule-maven-plugin-4.10.4-release-notes), [MUnit 3.7.6 compatibility](https://docs.mulesoft.com/release-notes/munit/munit-3.7.6-release-notes), [HTTP Connector 1.12.2 release notes](https://docs.mulesoft.com/release-notes/connector/connector-http), [Java Module reference](https://docs.mulesoft.com/java-module/latest/), [DataWeave hexadecimal conversion](https://docs.mulesoft.com/dataweave/latest/dw-binaries-functions-tohex), and [DataWeave timezone conversion](https://docs.mulesoft.com/dataweave/latest/dataweave-cookbook-change-time-zone).
 
 ## Build and tests
 
@@ -29,19 +29,28 @@ This command has **not been run in the current workspace** because Java and Mave
 - `src/main/resources/dw/map-quetzal.dwl` — Quetzal provider payload to canonical payment-event mapping.
 - `src/main/resources/dw/map-andina.dwl` — Andina provider payload to canonical payment-event mapping.
 - `src/main/mule/provider-adapters.xml` — Mule subflow boundaries for both providers' signature verification and event mapping.
+- `src/main/mule/webhook-intake.xml` — local HTTP endpoints and shared signature, mapping, validation, and acknowledgement orchestration.
+- `src/main/mule/integration-ports.xml` — fail-closed placeholders for secret retrieval and durable persistence.
+- `src/main/mule/outbox-dispatch.xml` — canonical outbox dispatch boundary with stable event message IDs and acknowledgement handling.
 - `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers.
+- `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, repeated-event deduplication, invalid signatures, persistence failure, and Andina business-data holds.
+- `src/test/munit/outbox-dispatch-test-suite.xml` — broker acknowledgement, publish-failure, and outbox-status update cases.
 - `src/test/resources/providers/quetzal/` — byte-for-byte copies of the fictional Quetzal test samples used by the signature tests.
 - `src/test/resources/providers/andina/` — byte-for-byte copies of the fictional Andina test samples used by signature and mapping tests.
 
-Each signature verifier is isolated from provider payload mapping and shared intake orchestration. The mappings emit the canonical fields defined in `docs/api/events/premium-payment.schema.json`, normalize event times to UTC, and do not copy payer or payment-method details from provider samples. HTTP intake, persistence, and publication are separate follow-on increments.
+Each signature verifier is isolated from provider payload mapping and shared intake orchestration. The mappings emit the canonical fields defined in `docs/api/events/premium-payment.schema.json`, normalize event times to UTC, and do not copy payer or payment-method details from provider samples. Before either persistence port is called, the flow removes the raw body, signature, and secret variables from the event context. The HTTP flows call fail-closed secret and persistence ports; MUnit supplies controlled test doubles. They do not implement a durable store or broker publisher.
 
 ## Stubs and external services
 
-This increment does not call Azure, a payment provider, Salesforce, a secrets store, or a message broker. The tests use the fictional sandbox secrets and signature vectors supplied in `reference/providers/quetzal-mx/WEBHOOK_SPEC.md` and `reference/providers/andina-co/WEBHOOK_SPEC.md`. Secret lookup, durable inbox/outbox, broker publication, and the HTTP listener are not implemented yet; later increments must keep them behind testable boundaries and stub them in tests.
+This increment does not call Azure, a payment provider, Salesforce, a secrets store, or a message broker. The tests use the fictional sandbox secrets and signature vectors supplied in `reference/providers/quetzal-mx/WEBHOOK_SPEC.md` and `reference/providers/andina-co/WEBHOOK_SPEC.md`. Runtime secret lookup, durable inbox/outbox persistence and polling, and broker publication remain to be implemented behind the existing testable ports.
+
+When a runtime secret provider and durable store are configured, the local listeners expose `POST /webhooks/quetzal` and `POST /webhooks/andina` on port `8081`. As checked into this assessment, the secret and persistence ports fail closed. The MUnit duplicate test uses a test-scoped event-ID collection to exercise the idempotency boundary; it does not model SQL durability, transaction isolation, or restart recovery.
 
 ## Known gaps
 
 - The local workspace has no detected Java or Maven executable, so build and MUnit execution are not verified.
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
-- The HTTP endpoint, durable acceptance, idempotency persistence, and canonical event publication remain to be implemented.
+- The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
+- Runtime validation checks canonical required values and the documented policy-reference format, but full JSON Schema validation is not wired into the flow yet.
+- The outbox dispatcher has no SQL poller or real broker connector; broker acknowledgement and status transitions are exercised only through MUnit stubs.
 - No Azure deployment or real external call is made.

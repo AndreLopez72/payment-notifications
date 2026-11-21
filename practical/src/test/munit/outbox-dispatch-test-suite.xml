@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="outbox-dispatch-test-suite" />
+
+    <munit:test name="canonical-outbox-is-marked-after-broker-ack" description="Marks an outbox record published only after the broker port acknowledges it.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="brokerAccepted" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'mark-canonical-outbox-published' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="outboxMarked" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://events/quetzal-captured.json', 'application/json')]" />
+            <flow-ref name="dispatch-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('PUBLISHED')]" />
+            <munit-tools:assert-that expression="#[vars.messageId == payload.eventId]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="canonical-outbox-stays-pending-on-broker-failure" description="Keeps the outbox record pending when publishing fails.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="brokerAccepted" value="#[false]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://events/quetzal-captured.json', 'application/json')]" />
+            <flow-ref name="dispatch-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('PENDING')]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="0">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'mark-canonical-outbox-published' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="canonical-outbox-mark-failure-remains-retryable" description="Keeps an acknowledged but unmarked record visible for retry and reconciliation.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="brokerAccepted" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'mark-canonical-outbox-published' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="outboxMarked" value="#[false]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://events/quetzal-captured.json', 'application/json')]" />
+            <flow-ref name="dispatch-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('PUBLISH_CONFIRMATION_PENDING')]" />
+            <munit-tools:assert-that expression="#[vars.messageId == payload.eventId]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+</mule>

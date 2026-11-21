@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="webhook-intake-test-suite" />
+
+    <flow name="test-idempotent-persistence-port">
+        <choice>
+            <when expression="#[(vars.eventIds default []) contains payload.eventId]">
+                <set-variable variableName="duplicate" value="#[true]" />
+            </when>
+            <otherwise>
+                <set-variable variableName="eventIds"
+                              value="#[(vars.eventIds default []) ++ [payload.eventId]]" />
+                <set-variable variableName="duplicate" value="#[false]" />
+            </otherwise>
+        </choice>
+        <set-variable variableName="durableAccepted" value="#[true]" />
+    </flow>
+
+    <munit:test name="quetzal-valid-event-is-durably-accepted" description="Returns 204 only after the persistence port confirms acceptance.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="durableAccepted" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-intake-quetzal-001" />
+            <flow-ref name="process-quetzal-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('captured')]" />
+            <munit-tools:assert-that expression="#[payload.customer == null and payload.payment_method == null]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[vars.rawBody == null and vars.webhookSecret == null]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-missing-secret-fails-closed" description="Does not accept webhooks when no signing secret is configured.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="process-quetzal-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(503)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-invalid-signature-is-not-persisted" description="Rejects invalid signatures before persistence.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=0000000000000000000000000000000000000000000000000000000000000000" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <flow-ref name="process-quetzal-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(400)]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="0">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-persistence-failure-returns-retryable-status" description="Does not acknowledge a webhook if durable persistence fails.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="durableAccepted" value="#[false]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-intake-quetzal-002" />
+            <flow-ref name="process-quetzal-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(503)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-valid-event-is-durably-accepted" description="Accepts an Andina event only after the persistence port confirms acceptance.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-andina-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="andina_test_secret_7c3e19ab" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="durableAccepted" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-intake-andina-001" />
+            <flow-ref name="process-andina-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('pending')]" />
+            <munit-tools:assert-that expression="#[payload.pagador == null and payload.medio_pago == null]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-invalid-policy-is-held-without-canonical-acceptance" description="Durably records a malformed policy reference without publishing a canonical event.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-andina-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="andina_test_secret_7c3e19ab" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'verify-andina-signature' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[true]" />
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-business-data-error' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="durableAccepted" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/json')]" />
+            <set-variable variableName="rawBody"
+                          value="#[write(payload update { case .transaccion.referencia -> 'invalid-reference' }, 'application/json') as Binary]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="test-only-signature-mocked-in-this-test" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-intake-andina-invalid-policy" />
+            <flow-ref name="process-andina-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[payload.pagador == null and vars.rawBody == null and vars.webhookSecret == null]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="1">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-business-data-error' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+            <munit-tools:verify-call processor="mule:flow-ref" times="0">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="quetzal-business-event-retry-is-acknowledged-as-duplicate" description="Acknowledges a repeated Quetzal event after the idempotent persistence stub recognizes its stable event identity.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-call flow="test-idempotent-persistence-port" />
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-intake-duplicate-first" />
+            <flow-ref name="process-quetzal-webhook" />
+            <set-variable variableName="firstResponseStatus" value="#[vars.responseStatus]" />
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:01Z" />
+            <set-variable variableName="correlationId" value="test-intake-duplicate-retry" />
+            <flow-ref name="process-quetzal-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.firstResponseStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[vars.duplicate]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[sizeOf(vars.eventIds)]" is="#[MunitTools::equalTo(1)]" />
+        </munit:validation>
+    </munit:test>
+</mule>
