@@ -10,6 +10,7 @@ permissions:
 jobs:
   deploy-dev:
     name: Deploy dev infrastructure
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     env:
@@ -46,6 +47,7 @@ jobs:
           test -n "$TERRAFORM_INPUTS_JSON"
           printf '%s' "$TERRAFORM_INPUTS_JSON" > "$RUNNER_TEMP/terraform.tfvars.json"
           jq empty "$RUNNER_TEMP/terraform.tfvars.json"
+          jq -e --arg environment "$DEPLOYMENT_ENVIRONMENT" '.environment == $environment' "$RUNNER_TEMP/terraform.tfvars.json" > /dev/null
           terraform init -input=false \
             -backend-config="resource_group_name=$TF_STATE_RESOURCE_GROUP" \
             -backend-config="storage_account_name=$TF_STATE_STORAGE_ACCOUNT" \
@@ -59,6 +61,7 @@ jobs:
   deploy-test:
     name: Deploy test infrastructure
     needs: deploy-dev
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: test
     env:
@@ -68,6 +71,7 @@ jobs:
   deploy-prod:
     name: Deploy prod infrastructure
     needs: deploy-test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
     env:
