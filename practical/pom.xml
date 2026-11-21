@@ -28,6 +28,11 @@
             <name>MuleSoft Releases Repository</name>
             <url>https://repository.mulesoft.org/releases/</url>
         </repository>
+        <repository>
+            <id>MuleRepository</id>
+            <name>MuleSoft Enterprise Repository</name>
+            <url>https://repository.mulesoft.org/nexus-ee/content/repositories/releases-ee/</url>
+        </repository>
     </repositories>
 
     <pluginRepositories>
@@ -100,9 +105,6 @@
                 <groupId>com.mulesoft.munit.tools</groupId>
                 <artifactId>munit-maven-plugin</artifactId>
                 <version>${munit.version}</version>
-                <configuration>
-                    <munit.runtimeVersion>${mule.runtime.version}</munit.runtimeVersion>
-                </configuration>
                 <executions>
                     <execution>
                         <id>munit-tests</id>

@@ -23,6 +23,12 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+          server-id: MuleRepository
+          server-username-env-var: MULESOFT_USERNAME
+          server-password-env-var: MULESOFT_PASSWORD
+        env:
+          MULESOFT_USERNAME: ${{ secrets.MULESOFT_USERNAME }}
+          MULESOFT_PASSWORD: ${{ secrets.MULESOFT_PASSWORD }}
 
       - name: Build and run MUnit
         working-directory: practical
@@ -122,6 +128,19 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: java
+
+      - name: Set up Java and MuleSoft repository credentials
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          server-id: MuleRepository
+          server-username-env-var: MULESOFT_USERNAME
+          server-password-env-var: MULESOFT_PASSWORD
+        env:
+          MULESOFT_USERNAME: ${{ secrets.MULESOFT_USERNAME }}
+          MULESOFT_PASSWORD: ${{ secrets.MULESOFT_PASSWORD }}
 
       - name: Build Mule Java sources
         working-directory: practical
