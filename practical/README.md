@@ -23,7 +23,7 @@ From this directory, with the selected JDK and Maven versions installed and the 
 mvn clean test
 ```
 
-The build was attempted with Java 17.0.21.1 (Zulu) and Maven 3.10.1. Maven's default local repository resolved to `C:\.m2\repository`, which was not writable in this workspace. Retrying with a writable temporary local repository reached dependency resolution, but the JVM rejected the TLS certificate chain from the MuleSoft and Maven Central repositories (`PKIX path building failed`). The Mule Maven Plugin could not be resolved, so compilation did not start and MUnit was not executed. Configure a writable Maven local repository and the required trusted certificate chain, then rerun the command; do not treat the test suite as passing evidence.
+The first GitHub Actions build stopped while Maven was reading the POM because its packaging value was not a valid Mule application packaging type. The POM now uses `mule-application`. A successful CI rerun is still required. Locally, Java 17.0.21.1 (Zulu) and Maven 3.10.1 are installed, but Maven's default local repository resolved to `C:\.m2\repository`, which was not writable in this workspace. Retrying with a writable temporary local repository reached dependency resolution, but the JVM rejected the TLS certificate chain from the MuleSoft and Maven Central repositories (`PKIX path building failed`). Compilation and MUnit have therefore not been verified; configure a writable Maven local repository and a trusted certificate chain, then rerun the command.
 
 ## Project structure
 
@@ -51,7 +51,7 @@ When a runtime secret provider and durable store are configured, the local liste
 
 ## Known gaps
 
-- Java 17.0.21.1 and Maven 3.10.1 are installed. Build and MUnit execution remain unverified because Maven could not resolve the Mule Maven Plugin: the default local repository was not writable, and the retry was blocked by JVM TLS certificate validation for the configured artifact repositories.
+- Java 17.0.21.1 and Maven 3.10.1 are installed. The first CI attempt failed because the POM used an invalid Mule packaging value; it now declares `mule-application`, and the CI rerun is pending. Local build and MUnit execution also remain unverified because the default Maven local repository was not writable and a retry was blocked by JVM TLS certificate validation for the configured artifact repositories.
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
 - The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
 - Canonical schema validation cases are authored but remain unexecuted until Maven can validate the configured artifact repository certificate chain.
