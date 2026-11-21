@@ -41,10 +41,12 @@ paths:
           description: >-
             Proposed response for an invalid signature, timestamp, or structurally invalid payload.
             Exact invalid-request response codes are not specified by Quetzal.
-        '500':
+        '503':
           description: >-
-            Durable acceptance failed. The provider should retry according to
-            its delivery policy.
+            The signing secret or durable acceptance is unavailable. The provider
+            should retry according to its delivery policy.
+        '500':
+          description: Unexpected listener error; the provider should retry.
 
   /webhooks/andina:
     post:
@@ -87,10 +89,12 @@ paths:
           description: >-
             Proposed response for an invalid signature, timestamp, or structurally invalid payload.
             Exact invalid-request response codes are not specified by Andina.
-        '500':
+        '503':
           description: >-
-            Durable acceptance failed. The provider should retry according to
-            its delivery policy.
+            The signing secret or durable acceptance is unavailable. The provider
+            should retry according to its delivery policy.
+        '500':
+          description: Unexpected listener error; the provider should retry.
 
 components:
   schemas:

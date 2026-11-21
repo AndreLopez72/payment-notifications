@@ -6,7 +6,7 @@
 
 The proposed paths are `/webhooks/quetzal` and `/webhooks/andina`. The assessment does not provide route paths or the API Manager base URL. Confirm the paths with the API Manager owner and register the corresponding URLs with the providers before deployment. The paths and OpenAPI dialect are provisional and tracked in `docs/ASSUMPTIONS.md` (A-23).
 
-The contract proposes `204` after durable acceptance, including recognized duplicates and authenticated business-data errors recorded for operational correction without publishing a canonical event; `400` for invalid signature, timestamp, or structurally invalid payload; and `500` when durable acceptance fails. The provider references do not specify exact error codes for invalid requests; this response mapping is provisional under A-12 in `docs/ASSUMPTIONS.md`.
+The contract proposes `204` after durable acceptance, including recognized duplicates and authenticated business-data errors recorded for operational correction without publishing a canonical event; `400` for invalid signature, timestamp, or structurally invalid payload; and `503` when a secret or durable acceptance is unavailable. Unexpected listener errors default to `500`. The provider references do not specify exact error codes for invalid requests; this response mapping is provisional under A-12 in `docs/ASSUMPTIONS.md`.
 
 ## Canonical event evolution
 
