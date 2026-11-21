@@ -292,3 +292,23 @@
 - **Impact if incorrect:** CD cannot initialize state or create required Azure resources/role assignments until backend and permissions are redesigned.
 - **Who should answer:** Azure platform/IaC owner and repository owner.
 
+## A-30 — On-call routing and alert escalation
+
+- **Documents affected:** `docs/operations/OPERATIONS.md`; alert configuration and support runbooks.
+- **Question:** What exact on-call destination and escalation path should receive the proposed payment-integration alerts?
+- **Context:** The solution design names the Payments Integration on-call role and proposes thresholds, but the assessment gives no pager alias, schedule, escalation timing, or backup team contact.
+- **Options:** (1) Route to the existing Payments Integration on-call service and its escalation policy — uses established support ownership; requires the actual contact and policy. (2) Create a workload-specific alert group — makes ownership explicit; requires operational setup and staffing.
+- **Provisional assumption used:** Identify the responsible role as Payments Integration on-call and engage Salesforce/policy-core or platform support according to the failure evidence. Do not invent a pager alias or escalation deadline.
+- **Impact if incorrect:** Alerts may not reach an available responder or could be routed to the wrong support group.
+- **Who should answer:** Payments Integration operations owner.
+
+## A-31 — V1 dead-letter replay mechanism for INC-0412
+
+- **Documents affected:** `docs/operations/INC-0412-RESPONSE.md`; incident runbook; `reference/incident/INC-0412.md`.
+- **Question:** Which approved tool and authorization process can replay messages from the v1 Service Bus dead-letter queue while preserving their identifiers and audit history?
+- **Context:** The incident documents a native per-country Service Bus DLQ and message identifiers, but does not describe a replay facility, correction authority, or audit process. The target design's SQL outbox/operations API is not established as part of v1.
+- **Options:** (1) Use an existing platform DLQ replay facility with controlled eligibility and audit — minimizes new tooling; requires platform capability and policy confirmation. (2) Build a temporary controlled replay utility — can enforce validation and idempotency; requires implementation, access controls, and operational approval. (3) Keep records held until a supported replay path is available — avoids unsafe duplicate or mislinked writes; extends customer impact.
+- **Provisional assumption used:** Do not purge or bulk-replay v1 messages. Replay only after authoritative policy-reference verification through a platform-approved, auditable mechanism; if none is available, keep the messages held pending owner approval.
+- **Impact if incorrect:** Replays may duplicate or mislink payment records, or eligible payments may remain unapplied longer than necessary.
+- **Who should answer:** Azure messaging owner, Payments Integration operations owner, and Salesforce policy-core owner.
+
