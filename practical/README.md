@@ -35,7 +35,7 @@ The build was attempted with Java 17.0.21.1 (Zulu) and Maven 3.10.1. Maven's def
 - `src/main/mule/webhook-intake.xml` — local HTTP endpoints and shared signature, mapping, validation, and acknowledgement orchestration.
 - `src/main/mule/integration-ports.xml` — fail-closed placeholders for secret retrieval and durable persistence.
 - `src/main/mule/outbox-dispatch.xml` — canonical outbox dispatch boundary with stable event message IDs and acknowledgement handling.
-- `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers.
+- `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers, including Quetzal partial refunds and the Andina v2.3 optional channel field.
 - `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, canonical schema enum/additional-property rejection, repeated-event deduplication, missing secrets and invalid signatures, sensitive-context cleanup, persistence failure, and Andina business-data holds.
 - `src/test/munit/outbox-dispatch-test-suite.xml` — broker acknowledgement, publish-failure, and outbox-status update cases.
 - `src/test/resources/providers/quetzal/` — byte-for-byte copies of the fictional Quetzal test samples used by the signature tests.

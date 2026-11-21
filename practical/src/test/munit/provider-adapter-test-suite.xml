@@ -168,6 +168,22 @@
         </munit:validation>
     </munit:test>
 
+    <munit:test name="quetzal-maps-partial-refund-amount" description="Preserves the original charge amount and maps a partial refund separately.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/03-charge-refunded.json', 'application/json')]" />
+            <set-payload value="#[payload update { case .data.charge.amount_refunded -> 2500 }]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-quetzal-partial-refund" />
+            <flow-ref name="map-quetzal-event" />
+            <flow-ref name="validate-quetzal-canonical-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('refunded')]" />
+            <munit-tools:assert-that expression="#[payload.amount]" is="#[MunitTools::equalTo('1250.00')]" />
+            <munit-tools:assert-that expression="#[payload.refundedAmount]" is="#[MunitTools::equalTo('25.00')]" />
+        </munit:validation>
+    </munit:test>
+
     <munit:test name="andina-valid-provider-vector" description="Accepts the supplied Andina HMAC test vector.">
         <munit:execution>
             <set-variable variableName="rawBody" value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
@@ -274,6 +290,21 @@
             <munit-tools:assert-that expression="#[payload.eventId]" is="#[MunitTools::equalTo('CO:Andina:TRX-CO-5521907:PENDIENTE')]" />
             <munit-tools:assert-that expression="#[payload.payer == null and payload.pagador == null and payload.medio_pago == null]" is="#[MunitTools::equalTo(true)]" />
             <munit-tools:assert-that expression="#[vars.policyReferenceValid]" is="#[MunitTools::equalTo(true)]" />
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-ignores-optional-channel-field" description="Ignores the v2.3 channel field and validates the provider-independent canonical event.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/json')]" />
+            <set-payload value="#[payload update { case .transaccion.canal -> 'APP' }]" />
+            <set-variable variableName="receivedAt" value="2026-11-20T12:00:00Z" />
+            <set-variable variableName="correlationId" value="test-correlation-andina-channel" />
+            <flow-ref name="map-andina-event" />
+            <flow-ref name="validate-andina-canonical-event" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.status]" is="#[MunitTools::equalTo('pending')]" />
+            <munit-tools:assert-that expression="#[payload.canal == null]" is="#[MunitTools::equalTo(true)]" />
         </munit:validation>
     </munit:test>
 
