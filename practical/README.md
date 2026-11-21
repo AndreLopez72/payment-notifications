@@ -38,6 +38,7 @@ The first GitHub Actions build stopped while Maven was reading the POM because i
 - `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers, including Quetzal partial refunds and the Andina v2.3 optional channel field.
 - `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, canonical schema enum/additional-property rejection, repeated-event deduplication, missing secrets and invalid signatures, sensitive-context cleanup, persistence failure, and Andina business-data holds.
 - `src/test/munit/outbox-dispatch-test-suite.xml` — broker acknowledgement, publish-failure, and outbox-status update cases.
+- `src/test/munit/intake-to-outbox-test-suite.xml` — test-controlled paths from signed Quetzal and Andina webhooks through canonical validation, simulated outbox acceptance and claim, and the broker publication port; also checks that failed acceptance produces no publishable record.
 - `src/test/resources/providers/quetzal/` — byte-for-byte copies of the fictional Quetzal test samples used by the signature tests.
 - `src/test/resources/providers/andina/` — byte-for-byte copies of the fictional Andina test samples used by signature and mapping tests.
 
@@ -46,7 +47,7 @@ Each HTTP listener captures `receivedAt` once and derives the timestamp-validati
 
 ## Stubs and external services
 
-This increment does not call Azure, a payment provider, Salesforce, a secrets store, or a message broker. The tests use the fictional sandbox secrets and signature vectors supplied in `reference/providers/quetzal-mx/WEBHOOK_SPEC.md` and `reference/providers/andina-co/WEBHOOK_SPEC.md`. Runtime secret lookup, durable inbox/outbox persistence and polling, and broker publication remain to be implemented behind the existing testable ports.
+This increment does not call Azure, a payment provider, Salesforce, a secrets store, or a message broker. The tests use the fictional sandbox secrets and signature vectors supplied in `reference/providers/quetzal-mx/WEBHOOK_SPEC.md` and `reference/providers/andina-co/WEBHOOK_SPEC.md`. The outbox claim port fails closed when no store is configured. The integrated MUnit case invokes the dispatcher explicitly after the intake flow and substitutes the store and broker; it does not establish actual SQL durability or broker delivery. Runtime secret lookup, durable inbox/outbox persistence and scheduled polling, and broker publication remain to be implemented behind the existing testable ports.
 
 When a runtime secret provider and durable store are configured, the local listeners expose `POST /webhooks/quetzal` and `POST /webhooks/andina` on port `8081`. As checked into this assessment, the secret and persistence ports fail closed. The MUnit duplicate test uses a test-scoped event-ID collection to exercise the idempotency boundary; it does not model SQL durability, transaction isolation, or restart recovery.
 
@@ -56,5 +57,5 @@ When a runtime secret provider and durable store are configured, the local liste
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
 - The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
 - Canonical schema validation cases are authored but remain unexecuted until Maven can resolve the JSON Module from the configured repository.
-- The outbox dispatcher has no SQL poller or real broker connector; broker acknowledgement and status transitions are exercised only through MUnit stubs.
+- The outbox dispatcher has a testable claim-and-dispatch boundary but no SQL-backed claim, scheduled poller, or real broker connector; broker acknowledgement and status transitions are exercised only through MUnit stubs.
 - No Azure deployment or real external call is made.

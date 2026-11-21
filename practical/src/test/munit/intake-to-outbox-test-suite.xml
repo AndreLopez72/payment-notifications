@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="intake-to-outbox-test-suite" />
+
+    <flow name="test-capture-canonical-outbox-record">
+        <set-variable variableName="storedEvent" value="#[payload]" />
+        <set-variable variableName="durableAccepted" value="#[true]" />
+    </flow>
+
+    <munit:test name="quetzal-intake-to-broker-boundary"
+                description="Accepts a signed webhook, claims its test outbox record, and publishes the canonical event through the broker port.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-call flow="test-capture-canonical-outbox-record" />
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'claim-next-canonical-outbox-record' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[vars.storedEvent]" />
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="brokerAccepted" value="#[true]" />
+                        <munit-tools:variable key="publishedEvent" value="#[payload]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'mark-canonical-outbox-published' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="outboxMarked" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-28T19:20:03Z" />
+            <set-variable variableName="correlationId" value="test-intake-to-outbox-quetzal" />
+            <flow-ref name="process-quetzal-webhook" />
+            <set-variable variableName="acceptanceStatus" value="#[vars.responseStatus]" />
+            <flow-ref name="dispatch-next-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.acceptanceStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('PUBLISHED')]" />
+            <munit-tools:assert-that expression="#[vars.messageId == vars.storedEvent.eventId and vars.publishedEvent.eventId == vars.storedEvent.eventId]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[vars.publishedEvent.customer == null and vars.publishedEvent.payment_method == null and vars.rawBody == null and vars.webhookSecret == null]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="1">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-intake-to-broker-boundary"
+                description="Publishes the canonical Colombian event after the signed notification is accepted by the test store.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-andina-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="andina_test_secret_7c3e19ab" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-call flow="test-capture-canonical-outbox-record" />
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'claim-next-canonical-outbox-record' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:payload value="#[vars.storedEvent]" />
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="brokerAccepted" value="#[true]" />
+                        <munit-tools:variable key="publishedEvent" value="#[payload]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'mark-canonical-outbox-published' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="outboxMarked" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <set-variable variableName="receivedAt" value="2026-11-28T19:02:59Z" />
+            <set-variable variableName="correlationId" value="test-intake-to-outbox-andina" />
+            <flow-ref name="process-andina-webhook" />
+            <set-variable variableName="acceptanceStatus" value="#[vars.responseStatus]" />
+            <flow-ref name="dispatch-next-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.acceptanceStatus]" is="#[MunitTools::equalTo(204)]" />
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('PUBLISHED')]" />
+            <munit-tools:assert-that expression="#[vars.publishedEvent.eventId == vars.storedEvent.eventId and vars.publishedEvent.country == 'CO' and vars.publishedEvent.status == 'pending']" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:assert-that expression="#[vars.publishedEvent.pagador == null and vars.publishedEvent.medio_pago == null and vars.rawBody == null and vars.webhookSecret == null]" is="#[MunitTools::equalTo(true)]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="1">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="failed-acceptance-has-no-publishable-record"
+                description="A failed persistence port cannot yield a successful acknowledgement or a broker publish.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="mule:flow-ref">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'load-quetzal-secret' ]" />
+                </munit-tools:with-attributes>
+                <munit-tools:then-return>
+                    <munit-tools:variables>
+                        <munit-tools:variable key="webhookSecret" value="qz_test_whsec_4f8a1c2e9b7d" />
+                        <munit-tools:variable key="secretAvailable" value="#[true]" />
+                    </munit-tools:variables>
+                </munit-tools:then-return>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/quetzal/01-charge-succeeded.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureHeader" value="t=1795888803,v1=2d07770582c02f15235ac4e027b7732beef86be103c574a1c3b988a4275f5031" />
+            <set-variable variableName="nowEpochSeconds" value="1795888803" />
+            <set-variable variableName="receivedAt" value="2026-11-28T19:20:03Z" />
+            <set-variable variableName="correlationId" value="test-failed-acceptance-quetzal" />
+            <flow-ref name="process-quetzal-webhook" />
+            <set-variable variableName="acceptanceStatus" value="#[vars.responseStatus]" />
+            <flow-ref name="dispatch-next-canonical-outbox-record" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.acceptanceStatus]" is="#[MunitTools::equalTo(503)]" />
+            <munit-tools:assert-that expression="#[vars.dispatchStatus]" is="#[MunitTools::equalTo('NO_PENDING_RECORD')]" />
+            <munit-tools:verify-call processor="mule:flow-ref" times="0">
+                <munit-tools:with-attributes>
+                    <munit-tools:with-attribute attributeName="name" whereValue="#[ 'publish-canonical-event' ]" />
+                </munit-tools:with-attributes>
+            </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+</mule>

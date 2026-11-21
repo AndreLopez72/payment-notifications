@@ -4,6 +4,18 @@
       xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
 
+    <sub-flow name="dispatch-next-canonical-outbox-record">
+        <flow-ref name="claim-next-canonical-outbox-record" />
+        <choice>
+            <when expression="#[payload != null]">
+                <flow-ref name="dispatch-canonical-outbox-record" />
+            </when>
+            <otherwise>
+                <set-variable variableName="dispatchStatus" value="#[ 'NO_PENDING_RECORD' ]" />
+            </otherwise>
+        </choice>
+    </sub-flow>
+
     <sub-flow name="dispatch-canonical-outbox-record">
         <set-variable variableName="messageId" value="#[payload.eventId]" />
         <set-variable variableName="brokerAccepted" value="#[false]" />

@@ -27,6 +27,10 @@
         <set-variable variableName="brokerAccepted" value="#[false]" />
     </sub-flow>
 
+    <sub-flow name="claim-next-canonical-outbox-record">
+        <set-payload value="#[null]" />
+    </sub-flow>
+
     <sub-flow name="mark-canonical-outbox-published">
         <set-variable variableName="outboxMarked" value="#[false]" />
     </sub-flow>
