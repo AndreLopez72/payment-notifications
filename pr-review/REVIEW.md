@@ -1,32 +1,32 @@
 # Review — PR-214
 
-> Replace the placeholders. Order findings from most to least severe. Reference lines as `path:line` using the line numbers of the **new** file (as in the `+` side of the diff).
-
 ## Verdict
 
 - [ ] Approve
 - [ ] Approve with comments
-- [ ] Request changes
+- [x] Request changes
 
 ## Summary for the author
 
-<!-- A few sentences addressed to @dvaldes: the overall assessment, what must change before merge, and what is good. -->
+@dvaldes, the provider-specific structure and reuse of the existing Salesforce client are a useful starting point. I cannot recommend merging this version because the webhook can accept requests without a signature, acknowledges work before it is durable, logs payer data, and can apply stale payment states. Please address the blockers first, then cover the retry, ordering, and amount cases with tests against Austral's supplied vectors and the Salesforce contract.
 
 ## Findings
 
 | # | Severity | File:line | Finding | Why it matters in this scenario | Suggested fix |
 |---|---|---|---|---|---|
-| 1 | | | | | |
-
-Severity scale:
-
-| Severity | Meaning |
-|---|---|
-| Blocker | Must be fixed before merge: data loss, security exposure, wrong business outcome for customers, or compliance breach |
-| Major | Should be fixed before merge: reliability, correctness in edge cases, or maintainability risk with real impact |
-| Minor | Can be fixed in this PR or a follow-up |
-| Nit | Style or naming; optional |
+| 1 | Blocker | `src/main/java/com/meridian/payments/cl/AustralWebhookController.java:41-46` | A missing `X-Austral-Signature` bypasses verification: the request is rejected only when `signature != null` and invalid. The provider specification requires an HMAC signature. The method also verifies a decoded `String`, not the exact raw request bytes covered by that HMAC. | An unauthenticated caller can submit forged captured/refunded events, which can change a payment and trigger Salesforce policy automation. A byte transformation can also reject valid signed deliveries. | Require the header and reject missing/empty values. Verify the exact raw body bytes using the provider's lowercase-hex HMAC-SHA256 rule before parsing JSON. Add tests for a missing header, invalid signature, and both supplied signature vectors. |
+| 2 | Blocker | `src/main/resources/application.yml:3` | The webhook secret is hardcoded in application configuration and labelled `live`. | The repository must not contain credentials. Anyone with repository access could forge Austral notifications if this were an active key. | Remove the value from source, load it from the approved secrets store at runtime, and rotate/revoke the exposed key if it is real. |
+| 3 | Blocker | `src/main/java/com/meridian/payments/cl/AustralWebhookController.java:52-55` | The controller returns `200` immediately after placing work on an in-memory executor. No durable event is committed before acknowledgement; a process restart can discard queued work. `AustralPaymentService` also catches processing failures after acknowledgement. | Austral treats any `2xx` as accepted and retries only when it does not receive one. Losing an acknowledged payment violates NFR3 and can leave an overdue policy suspended. | Persist the authenticated notification and processing/outbox state durably before returning `2xx`, then process asynchronously from durable storage. Return non-`2xx` if that commit fails. |
+| 4 | Blocker | `src/main/java/com/meridian/payments/cl/AustralPaymentService.java:43-45` | Existing Salesforce payments are updated to the incoming status without comparing `payment.occurredAt` with the currently applied state; the update call does not carry the event timestamp or last event ID. | Austral explicitly does not guarantee ordering. A late `PAYMENT_CONFIRMED` after `PAYMENT_REVERSED` can regress a refunded payment to `Captured` and trigger incorrect policy automation, contrary to FR5. | Persist event time and identity, serialize processing by payment key, and reject/hold stale transitions so the latest provider state cannot be overwritten by an older event. Test reversed-then-late-confirmed delivery. |
+| 5 | Major | `src/main/java/com/meridian/payments/cl/AustralWebhookController.java:49-50` | The full notification object is logged. It contains payer name, RUT, and email. | NFR6 and the webhook specification prohibit putting payer personal data in logs. This creates unnecessary privacy exposure in centralized telemetry. | Remove payload/object logging. Log only allowlisted, sanitized identifiers, correlation ID, status, and error code; add a test that confirms payer fields are absent from log output. |
+| 6 | Major | `src/main/java/com/meridian/payments/cl/AustralPaymentService.java:35-37,43-57` | Idempotency is a check-then-act sequence. Concurrent retries can both observe no `eventId`, call Salesforce, and only then compete to save the database marker. A successful Salesforce write followed by a failed marker save can also be repeated. The Salesforce path uses lookup plus create/update instead of the documented `Payment_Key__c` upsert. | Delivery is at least once. FR4 requires one business payment despite duplicate/concurrent deliveries; the database transaction cannot make the remote Salesforce write atomic with its local marker. | Claim the event atomically in durable inbox storage before dispatch and use an outbox/recovery state. Upsert Salesforce by the deterministic unique `Payment_Key__c`; preserve the same key on retries. Test concurrent duplicate deliveries and failure after Salesforce success but before local confirmation. |
+| 7 | Major | `src/main/java/com/meridian/payments/cl/AustralPaymentService.java:43-54`; `src/main/java/com/meridian/payments/config/AsyncConfig.java:12-15` | Each payment performs a Salesforce lookup followed by a separate write, and the worker is limited to four threads with no batching or explicit back-pressure. | Every REST request consumes the shared Salesforce API budget. The design allows up to 200 records per collection upsert and a 40-notification/second peak; this implementation adds avoidable calls and can accumulate a large in-memory queue, jeopardizing the budget and freshness targets. | Use the documented external-ID upsert and bounded batches, cap concurrency below the Salesforce maximum of 25, and use durable backlog/back-pressure. Demonstrate peak and rolling-24-hour call use against the scenario's 150,000-call integration budget. |
+| 8 | Major | `src/main/java/com/meridian/payments/cl/AustralNotification.java:9-15`; `src/main/java/com/meridian/payments/cl/AustralPaymentService.java:47-54` | The provider defines `payment.amount` as an integer amount encoded as a string, but the DTO parses it as `double` and later rounds through floating-point arithmetic. | This is payment data in CLP, which has no minor unit. Binary floating-point conversion and silent rounding can change values, and the input model does not preserve the provider's exact representation. | Model the amount as a string or `BigDecimal`, parse it exactly, validate its range/format, and map CLP without applying a two-decimal rounding step. Add exact-value tests using provider samples. |
+| 9 | Major | `src/main/java/com/meridian/payments/cl/AustralPaymentService.java:63-69` | Unknown `eventType` values silently become `Pending`. | The provider specification defines three event types. Treating a typo or future event as a real pending payment hides a contract change and may create incorrect Salesforce records. | Map only the documented types; reject or durably hold unknown types with a sanitized error and alert. Add an unsupported-event test. |
+| 10 | Minor | `src/test/java/com/meridian/payments/cl/AustralPaymentServiceTest.java:31-45` | The success test only asserts that the service object is non-null, and the duplicate test allows one `createPayment` call (`atMost(1)`) instead of proving no Salesforce interaction occurred. | These tests can pass without proving that a notification is mapped, persisted, or skipped on duplicate, leaving key webhook behaviors unprotected. | Assert the exact Salesforce record/status and repository save on success; verify no Salesforce calls and no duplicate marker write for a duplicate. Add focused controller/signature, failure, ordering, precision, and concurrency tests. |
 
 ## What looks good
 
-<!-- Optional. -->
+- The PR keeps Austral-specific request handling, signature verification, and status mapping in provider-scoped classes.
+- Constructor injection reuses the existing Salesforce client and repository abstractions.
+- The service recognizes the three documented Austral event types and uses the provider's stable `eventId` as a deduplication identifier.

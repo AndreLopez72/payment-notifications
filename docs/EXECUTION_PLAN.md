@@ -25,6 +25,7 @@ The order respects the deliverable dependencies:
 | 7 — Azure infrastructure as code and service rationale | In progress | Terraform resources, least-privilege role assignments, private endpoints, and diagnostics are authored; `docs/infra/AZURE_SERVICES.md` records alternatives and missing cost inputs. Terraform CLI is unavailable, so formatting and `terraform validate` remain unverified. No deployment was performed. |
 | 8 — CI/CD definition | In progress | Pull request CI and manual dev → test → prod OIDC deployment workflows are authored. They have not been run or validated by GitHub; Azure environments, federation, remote state, Maven dependency access, and owner-approved deployment permissions remain external prerequisites. No deployment was triggered. |
 | 9 — Operations and incident response | In progress | Per-country SLI/SLOs, telemetry safeguards, proposed alerts, and an evidence-based INC-0412 response are authored. Exact alert routing and the v1 DLQ replay tool remain unspecified and are tracked in A-30/A-31. |
+| 10 — PR-214 code review | In progress | The review now contains prioritized, line-referenced findings grounded in the supplied diff, scenario, Austral specification, and Salesforce constraints. Final repository handoff remains. |
 | Build/test environment | Not available in this workspace | Java and Maven executables are absent; XML/JSON parsing, fixture byte comparison, and independent signature-vector checks are not substitutes for compilation or MUnit. |
 
 Implementation constraints for every code increment:
