@@ -32,3 +32,5 @@ The workflow creates a plan and applies it only after the GitHub Environment's p
 ## Validation status
 
 `actionlint` v1.7.10 passed on both workflow files. A GitHub Actions CI run was started; its Terraform validation job reported schema errors in the Key Vault RBAC argument and diagnostic metric blocks under AzureRM 5.2.0. The configuration has been updated to the provider's current argument/block names, but CI has not yet been rerun successfully. Terraform CLI 1.9.8 local `fmt` and backend-disabled `init` passed previously; local `validate` remains blocked by the provider's gRPC TLS handshake before schema validation. The deployment workflow has not been run.
+
+The practical project passed local Maven `clean process-classes` with Java 17 and Windows certificate-store trust. Local `clean verify` reached MUnit but could not start its embedded Mule 4.9.9 runtime because the distribution BOM was unavailable from accessible repositories; no test assertion ran. The latest local commits have not been pushed, so CI has not checked them. A successful CI link remains optional under `TASKS.md` when MuleSoft Enterprise dependencies are inaccessible.
