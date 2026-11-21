@@ -16,9 +16,9 @@
 
 - **Documents affected:** `docs/design/SOLUTION_DESIGN.md`; `docs/adr/0002-stack-and-state-store.md`; `infra/`.
 - **Question:** Can the existing integration/API Manager platform use managed identity or an approved federated workload identity to access Azure SQL, Service Bus, and Key Vault?
-- **Context:** NFR6 requires managed identities for Azure resources and prohibits secrets in code/configuration. The integration platform's Azure identity capability is not described.
+- **Context:** NFR6 requires managed identities for Azure resources and prohibits secrets in code/configuration. The integration platform's Azure identity capability is not described. Terraform configures an Entra administrator for Azure SQL, but the assessment does not identify the runtime database principals or their grant-provisioning mechanism.
 - **Options:** (1) Supported managed/federated identity — avoids stored Azure credentials and allows least privilege; depends on platform support. (2) Move the Azure-connected worker to an Azure runtime with managed identity — satisfies the identity direction; changes deployment placement and runtime topology.
-- **Provisional assumption used:** Mule can use a supported non-secret identity mechanism. No stored Azure credential is allowed.
+- **Provisional assumption used:** Mule can use a supported non-secret identity mechanism. No stored Azure credential is allowed. Use separate runtime database users with table-level permissions for intake, outbox publishing, Salesforce work, and operations; provision grants through an authorized database migration after the schema and workload principals are known. The Terraform SQL administrator is not used by the runtime.
 - **Impact if incorrect:** The selected runtime placement cannot satisfy NFR6 and must change before implementation.
 - **Who should answer:** Integration platform owner and Azure identity/platform team.
 

@@ -25,6 +25,19 @@ Required existing platform inputs include a private-endpoint subnet, private DNS
 
 Terraform provisions Azure SQL, a Service Bus topic and subscription, Key Vault, the selected Service Bus network path, private endpoints, role assignments, and diagnostic settings. SQL and Key Vault use private endpoints. The Service Bus endpoint mode is conditional: Standard plus approved IP filtering, or Premium plus a private endpoint. These modes must not be combined. The integration applications run on the enterprise Mule 4 platform according to the solution design, so this configuration creates no Azure compute. It references the existing Log Analytics workspace instead of creating a duplicate workspace.
 
+### Azure SQL runtime authorization
+
+`sql_entra_admin_object_id` configures the SQL server's Entra administrator for database provisioning. It is not a runtime identity or a grant to the Mule applications. Terraform cannot assign table-level SQL permissions with the Azure resource role assignments in `main.tf`; those assignments cover Service Bus and Key Vault only. After the proposed tables are created, an authorized database migration must create contained database users for the approved workload identities and grant only the operations each component needs. The exact principal names and the Mule identity mechanism remain open under A-02; no database user or grant is applied by this assessment.
+
+| Proposed identity boundary | Table access required by the solution design |
+|---|---|
+| Webhook intake | Insert delivery attempts; read/insert/update inbox and payment state for atomic deduplication; insert canonical outbox and Salesforce work rows in the same transaction. |
+| Outbox publisher | Read/claim pending outbox rows and update publication results. It does not need access to provider secrets or Salesforce payment records. |
+| Salesforce consumer | Read/update Salesforce work and payment processing status; read payment state needed for per-key ordering. It does not write `Policy__c` in Salesforce. |
+| Operations search | Read sanitized delivery, inbox, payment, outbox, and work status only. Replay is a separate authorized write capability with an audit trail. |
+
+Grant access to these tables or narrower stored procedures, not database-wide writer or administrator roles. The database owner must verify the final grants against the actual schema, transaction boundaries, and service identities before deployment. Private DNS/routing from Mule to the SQL private endpoint must also be confirmed under A-26.
+
 Service Bus uses a topic subscription with dead-letter-on-expiration enabled and a configurable maximum delivery count. Application-level Salesforce failures remain represented by the SQL outbox/status design; the broker DLQ is for broker delivery failures. Replay procedures and full application DLQ mechanics remain subject to A-15.
 
 ## Validation (no deployment)

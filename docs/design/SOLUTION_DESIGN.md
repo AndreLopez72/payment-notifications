@@ -298,7 +298,7 @@ Proposed alerts: oldest pending outbox > 1 minute; queue age > 3 minutes; DLQ de
 
 ### Security, privacy, cost
 
-- Store secrets in Azure Key Vault; access via managed identity and least privilege. No credentials in code/config.
+- Store secrets in Azure Key Vault; access via managed identity and least privilege. No credentials in code/config. The Azure SQL Entra administrator provisions the database; separate runtime database users receive only the table access needed by intake, outbox publishing, Salesforce status processing, and operations search/replay. See `infra/README.md` and A-02 for the provisional authorization boundary.
 - Encrypt transport with HTTPS/TLS; restrict data access to integration and authorized operations identities. Exact network controls require IaC/security review.
 - Do not persist or emit payer PII or raw webhook payloads. Structured logs contain provider/country, safe identifiers, correlation ID, status, timestamps, delivery attempt, and sanitized error code only.
 - One Azure region serves all three countries, per scenario. Existing Azure Monitor, Application Insights, and Log Analytics are reused at platform level.
