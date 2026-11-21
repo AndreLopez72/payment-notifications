@@ -1,0 +1,75 @@
+name: Deploy infrastructure through environments
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-dev:
+    name: Deploy dev infrastructure
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      DEPLOYMENT_ENVIRONMENT: dev
+    steps: &terraform-deploy-steps
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Sign in to Azure with federated identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Initialize remote state and deploy
+        working-directory: infra
+        env:
+          ARM_USE_OIDC: 'true'
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+          TERRAFORM_INPUTS_JSON: ${{ vars.TERRAFORM_INPUTS_JSON }}
+        run: |
+          test -n "$TERRAFORM_INPUTS_JSON"
+          printf '%s' "$TERRAFORM_INPUTS_JSON" > "$RUNNER_TEMP/terraform.tfvars.json"
+          jq empty "$RUNNER_TEMP/terraform.tfvars.json"
+          terraform init -input=false \
+            -backend-config="resource_group_name=$TF_STATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$TF_STATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$TF_STATE_CONTAINER" \
+            -backend-config="key=payments-notifications-${DEPLOYMENT_ENVIRONMENT}.tfstate" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+          terraform plan -input=false -var-file="$RUNNER_TEMP/terraform.tfvars.json" -out="$RUNNER_TEMP/tfplan"
+          terraform apply -input=false -auto-approve "$RUNNER_TEMP/tfplan"
+
+  deploy-test:
+    name: Deploy test infrastructure
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      DEPLOYMENT_ENVIRONMENT: test
+    steps: *terraform-deploy-steps
+
+  deploy-prod:
+    name: Deploy prod infrastructure
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      DEPLOYMENT_ENVIRONMENT: prod
+    steps: *terraform-deploy-steps

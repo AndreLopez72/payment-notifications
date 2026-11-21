@@ -252,3 +252,43 @@
 - **Impact if incorrect:** A retry after uncertain broker confirmation could repeat downstream processing.
 - **Who should answer:** Azure messaging owner and Finance/Notifications consumer owners.
 
+## A-26 — Private connectivity for Azure data and messaging services
+
+- **Documents affected:** `infra/`; `docs/infra/AZURE_SERVICES.md`; `docs/design/SOLUTION_DESIGN.md`.
+- **Question:** Can Mule 4 on the enterprise integration platform reach Azure SQL, Service Bus, and Key Vault through approved private endpoints and private DNS?
+- **Context:** The assessment requires Azure security controls and says the integration platform can run Mule 4 or front Azure services. It does not document network connectivity, DNS, subnet ownership, or private endpoint support from that platform.
+- **Options:** (1) Private endpoints with private DNS and network routing from the Mule platform — limits public exposure; depends on network connectivity and platform routing. (2) Approved public endpoints with restricted network rules — may fit the current platform path; exposes a public endpoint and requires an approved source network/control design. (3) Move the Azure-connected workload to a platform with approved private access — may resolve connectivity; changes runtime placement and requires a design decision.
+- **Provisional assumption used:** Terraform provisions private endpoints and disables public network access, referencing existing subnet and DNS zone IDs. No network resources are created by this proposal.
+- **Impact if incorrect:** The Mule applications cannot reach required services, or network controls need redesign before deployment.
+- **Who should answer:** Azure network/platform owner and enterprise integration platform owner.
+
+## A-27 — Infrastructure toolchain and configurable service settings
+
+- **Documents affected:** `infra/`; `docs/infra/AZURE_SERVICES.md`; `docs/EXECUTION_PLAN.md`.
+- **Question:** Are Terraform `>= 1.9.0, < 2.0.0` (CI currently pins 1.9.8), AzureRM `~> 5.2.0`, the required infrastructure inputs, and the exposed security settings approved for the assessment environment?
+- **Context:** The assessment permits Terraform but does not specify its CLI/provider versions. It also does not specify the Azure region, service tiers, SQL size/redundancy, Service Bus delivery/duplicate-detection settings, Key Vault SKU/retention, identity principal IDs, or existing network/workspace resource IDs.
+- **Options:** (1) Use the checked-in version constraints and require platform-approved values for all unresolved inputs — repeatable configuration without silently choosing service capacity; requires Terraform availability and owner-provided values. (2) Use the organization's pinned Terraform/provider baseline and environment module conventions — aligns with platform governance; those conventions have not been supplied. (3) Add provisional defaults — easier to run a plan; risks presenting unapproved cost, availability, and security settings as target decisions.
+- **Provisional assumption used:** Keep the checked-in constraints provisional, expose unresolved values as required variables, and do not set default SKUs, region, identities, network IDs, duplicate-detection window, SQL capacity, or cost. The Service Bus topic requires Standard or Premium; Terraform excludes Basic for that reason.
+- **Impact if incorrect:** Terraform may need version or interface changes; missing or unsuitable values can block validation or create an unsuitable deployment plan.
+- **Who should answer:** Candidate and Azure platform/infrastructure owner.
+
+## A-28 — GitHub Actions environments and Azure workload federation
+
+- **Documents affected:** `.github/workflows/ci.yml`; `.github/workflows/deploy.yml`; `.github/workflows/README.md`.
+- **Question:** Are GitHub Actions, protected `dev`/`test`/`prod` environments, and Azure workload identity federation approved for CI/CD?
+- **Context:** Part C permits GitHub Actions and requires CI for pull requests plus staged CD authenticated without stored Azure secrets. The assessment does not provide repository environment policies, federated credential subjects, or Azure client/tenant/subscription identifiers.
+- **Options:** (1) Use GitHub Actions environments and Azure OIDC federation — supports environment approvals and avoids a stored Azure client secret; requires Azure and repository configuration. (2) Use Azure Pipelines with workload federation — also avoids stored credentials; changes the selected pipeline platform. (3) Store long-lived credentials — simpler initial setup but conflicts with the no-stored-secrets direction and is not selected.
+- **Provisional assumption used:** Define GitHub Actions CI and a manual-only `dev` → `test` → `prod` workflow using Azure OIDC. The workflow is not dispatched; environment protection, federation, and Azure permissions must be configured by the platform owner before use.
+- **Impact if incorrect:** Workflow platform, identity setup, and approval controls must be changed before CI/CD can run.
+- **Who should answer:** Repository owner and Azure identity/platform owner.
+
+## A-29 — Terraform remote state and deployment permissions
+
+- **Documents affected:** `infra/backend.tf`; `.github/workflows/deploy.yml`; `.github/workflows/README.md`; `infra/README.md`.
+- **Question:** Which approved remote state backend and Azure scopes/roles should the deployment identity use for each environment?
+- **Context:** The assessment requires infrastructure changes and federated authentication but supplies no state storage resource, state access policy, resource-group ownership, or role-assignment permission model. The deployment creates role assignments, which requires explicit authorization.
+- **Options:** (1) Use an existing organization-managed Azure Storage backend and a narrowly scoped federated identity with approved resource and role-assignment permissions — centralizes protected state; requires the existing backend and exact scope model. (2) Use a different organization-approved Terraform backend/pipeline identity — aligns with platform standards; requires updating the backend/workflow. (3) Use local state — unsuitable for staged team deployments and is not used by the CD workflow.
+- **Provisional assumption used:** Configure the workflow for an existing Azure Storage backend with Entra authentication and require environment-specific resource identifiers through GitHub Environment variables. Do not configure state resources or grant permissions in this repository.
+- **Impact if incorrect:** CD cannot initialize state or create required Azure resources/role assignments until backend and permissions are redesigned.
+- **Who should answer:** Azure platform/IaC owner and repository owner.
+

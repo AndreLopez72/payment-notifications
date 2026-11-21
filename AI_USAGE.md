@@ -12,6 +12,7 @@
 | ChatGPT / Codex (model/version not exposed in this session) | Repository root: `AI_USAGE.md` | Prepared this disclosure based on the work completed in the repository. |
 | ChatGPT / Codex (model/version not exposed in this session) | Part B contracts: `docs/api/webhooks.openapi.yaml`, `docs/api/events/premium-payment.schema.json`, `docs/api/README.md`, and `docs/ASSUMPTIONS.md` | Drafted the webhook and canonical-event contracts from the assessment and provider references; recorded the unspecified route, dialect, and source-field requiredness as provisional assumptions. |
 | ChatGPT / Codex (model/version not exposed in this session) | Part B intake: `practical/src/main/mule/`, `practical/src/main/java/com/meridian/payments/adapter/`, `practical/src/main/resources/dw/`, `practical/src/test/munit/`, and `practical/src/test/resources/` | Implemented provider signature and mapping subflows, local HTTP intake orchestration, fail-closed secret/persistence/broker ports, an outbox dispatch boundary, and MUnit cases using supplied fictional vectors and payloads; selected compatible provisional Mule tool versions after consulting official MuleSoft documentation. |
+| ChatGPT / Codex (model/version not exposed in this session) | Part C: `infra/`, `docs/infra/`, `.github/workflows/`, `docs/ASSUMPTIONS.md`, and `docs/EXECUTION_PLAN.md` | Authored parameterized Terraform for the selected Azure services, least-privilege role assignments, private endpoints, diagnostics, CI gates, and a manual staged OIDC deployment workflow; recorded missing environment, cost, network, identity, state, and permission inputs as provisional assumptions. Consulted official HashiCorp, Microsoft, and GitHub documentation for provider and workflow capabilities. |
 
 ## Validation
 
@@ -25,6 +26,7 @@
 - Rechecked provider-specific signature and retry identity behavior against the webhook references. The design preserves the distinction between provider event identity and Meridian's per-ingestion attempt ID.
 - Reviewed the resulting files and searched for key terms and decisions. The Mule and MUnit XML descriptors and JSON schema/manifest parse successfully, but no Mule build or MUnit test was run because Java and Maven executables are unavailable. The practical README records the current fail-closed ports and remaining runtime gaps.
 - The final selection remains Mule 4, Azure SQL, Azure Service Bus, and the scenario's existing Azure Monitor, Application Insights, and Log Analytics. These architecture choices are proposals and are listed in `docs/ASSUMPTIONS.md` where the source documents do not dictate them.
+- Reviewed Part C resource and workflow files against `TASKS.md`, `SCENARIO.md`, the solution design, and assumptions. `git diff --check` passed. Terraform formatting/validation and GitHub workflow execution were not run because Terraform and workflow validation tools are unavailable in the workspace; no CI/CD workflow or Azure deployment was triggered. The Azure monthly cost is explicitly left unestimated because region, tiers, redundancy, and budget inputs are missing.
 
 ## What I discarded or corrected
 
