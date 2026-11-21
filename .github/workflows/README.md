@@ -15,7 +15,7 @@ CI runs for every pull request, pushes to `main`, and manual validation. It buil
 
 Configure branch protection to require the CI checks before merging. The repository's GitHub security settings and environment protection rules must also permit the corresponding code-scanning and dependency-review features.
 
-The Mule build and CodeQL jobs require dependency access for the MuleSoft artifacts in `practical/pom.xml`. They configure Maven to use the MuleSoft Enterprise Repository credentials from the GitHub Actions secrets `MULESOFT_USERNAME` and `MULESOFT_PASSWORD`. Populate these secrets only with authorized repository credentials; do not commit credentials. If Enterprise Repository access is unavailable, request it from the MuleSoft platform owner or support. A green result has not been observed from this workspace.
+The Mule build and CodeQL jobs resolve dependencies from the MuleSoft public repositories listed in `practical/pom.xml`. The candidate has a free MuleSoft learning account and no Enterprise Repository credentials. A successful CI run has not been observed; if a required artifact is unavailable publicly, record the build as unverified as permitted by `TASKS.md` rather than adding inaccessible credentials.
 
 ## CD (`deploy.yml`)
 
