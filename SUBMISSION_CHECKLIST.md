@@ -41,6 +41,6 @@ Tick every item before you send your repository URL. Missing items are scored as
 
 ## Validation and remaining submission details
 
-- Terraform, GitHub Actions, Mule build, and MUnit have not been run in this workspace. Do not treat authored workflows or tests as passing evidence.
+- Terraform and GitHub Actions have not been run in this workspace. The Mule build was attempted with Java 17.0.21.1 and Maven 3.10.1 but stopped before compilation because Maven could not resolve the Mule Maven Plugin (local repository permissions, then JVM TLS certificate validation); MUnit was not executed. Do not treat authored workflows or tests as passing evidence.
 - The assessment's provider test vectors and PR-214 contents are fictional reference material. Review the full repository and its Git history for secrets before publishing; repository visibility has not been verified.
 - Candidate ID, actual time spent, repository URL/visibility, and final submission commit SHA remain for the candidate to complete in `SUBMISSION.md`.

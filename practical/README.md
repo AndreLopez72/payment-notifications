@@ -20,7 +20,7 @@ From this directory, with the selected JDK and Maven versions installed and the 
 mvn clean test
 ```
 
-This command has **not been run in the current workspace** because Java and Maven executables are not available here. The MUnit suite is present, but its result remains unverified until it runs in an Anypoint or Maven environment.
+The build was attempted with Java 17.0.21.1 (Zulu) and Maven 3.10.1. Maven's default local repository resolved to `C:\.m2\repository`, which was not writable in this workspace. Retrying with a writable temporary local repository reached dependency resolution, but the JVM rejected the TLS certificate chain from the MuleSoft and Maven Central repositories (`PKIX path building failed`). The Mule Maven Plugin could not be resolved, so compilation did not start and MUnit was not executed. Configure a writable Maven local repository and the required trusted certificate chain, then rerun the command; do not treat the test suite as passing evidence.
 
 ## Project structure
 
@@ -48,7 +48,7 @@ When a runtime secret provider and durable store are configured, the local liste
 
 ## Known gaps
 
-- The local workspace has no detected Java or Maven executable, so build and MUnit execution are not verified.
+- Java 17.0.21.1 and Maven 3.10.1 are installed. Build and MUnit execution remain unverified because Maven could not resolve the Mule Maven Plugin: the default local repository was not writable, and the retry was blocked by JVM TLS certificate validation for the configured artifact repositories.
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
 - The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
 - Runtime validation checks canonical required values and the documented policy-reference format, but full JSON Schema validation is not wired into the flow yet.

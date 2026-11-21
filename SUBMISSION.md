@@ -24,7 +24,7 @@
 
 ## Stack
 
-- Practical part (Part B): Mule 4.9.9, Java 17, DataWeave, and MUnit 3.7.6 (provisional implementation toolchain; build/tests have not run locally).
+- Practical part (Part B): Mule 4.9.9, Java 17, DataWeave, and MUnit 3.7.6 (provisional implementation toolchain). Java 17.0.21.1 and Maven 3.10.1 are installed; Maven could not resolve the Mule Maven Plugin because the default local repository was not writable and the retry failed JVM TLS certificate validation. Compilation and MUnit remain unverified.
 - Infrastructure as code: Terraform CLI 1.9.8 in CI; AzureRM provider constraint `~> 5.2.0`.
 - Pipeline: GitHub Actions. Pull request CI and manual-only staged `dev` → `test` → `prod` CD are defined; no workflow has run.
 - CI run link (optional): [Not available]
@@ -37,7 +37,7 @@
 
 ## Known gaps and what I would do next
 
-- Install the approved Mule/Maven and Terraform toolchains, then run MUnit, `terraform fmt`, and `terraform validate`; record the results. The GitHub workflow files have not been run or independently syntax-validated.
+- Configure a writable Maven local repository and the required JVM-trusted certificate chain for the MuleSoft and Maven Central repositories, then rerun the Part B build/MUnit suite. Run `terraform fmt` and `terraform validate` when Terraform is available; the GitHub workflow files have not been run or independently syntax-validated.
 - Confirm Azure region, SQL/Service Bus/Key Vault tiers, redundancy, workload identities, private networking, state backend, and budget with the platform owners. The monthly cost estimate remains open because these inputs are not in the assessment.
 - Configure GitHub Environments, Azure OIDC federation, remote state, approvers, and least-privilege permissions before any deployment workflow use. No deployment has been performed.
 - Confirm Mule-to-Azure identity, network, and telemetry support; Salesforce API Manager backend-token mediation; the exact on-call destination; and the v1 DLQ replay mechanism (A-02/A-14/A-22/A-26/A-29/A-30/A-31).
