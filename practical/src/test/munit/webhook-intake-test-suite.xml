@@ -126,6 +126,7 @@
         </munit:execution>
         <munit:validation>
             <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(503)]" />
+            <munit-tools:assert-that expression="#[vars.rawBody == null and vars.webhookSecret == null and vars.signatureHeader == null]" is="#[MunitTools::equalTo(true)]" />
         </munit:validation>
     </munit:test>
 
@@ -152,11 +153,27 @@
         </munit:execution>
         <munit:validation>
             <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(400)]" />
+            <munit-tools:assert-that expression="#[vars.rawBody == null and vars.webhookSecret == null and vars.signatureHeader == null]" is="#[MunitTools::equalTo(true)]" />
             <munit-tools:verify-call processor="mule:flow-ref" times="0">
                 <munit-tools:with-attributes>
                     <munit-tools:with-attribute attributeName="name" whereValue="#[ 'persist-canonical-event' ]" />
                 </munit-tools:with-attributes>
             </munit-tools:verify-call>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="andina-missing-secret-fails-closed" description="Does not accept Andina webhooks when no signing secret is configured and clears request credentials.">
+        <munit:execution>
+            <set-payload value="#[readUrl('classpath://providers/andina/01-transaccion-pendiente.json', 'application/octet-stream') as Binary]" />
+            <set-variable variableName="rawBody" value="#[payload]" />
+            <set-variable variableName="signatureTimestamp" value="2026-11-28T14:02:59-05:00" />
+            <set-variable variableName="signatureValue" value="JhaBZfk7eQsoMbbQbThmAx/bCyehBOzKYw8XTP2a40k=" />
+            <set-variable variableName="nowEpochSeconds" value="1795892579" />
+            <flow-ref name="process-andina-webhook" />
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.responseStatus]" is="#[MunitTools::equalTo(503)]" />
+            <munit-tools:assert-that expression="#[vars.rawBody == null and vars.webhookSecret == null and vars.signatureTimestamp == null and vars.signatureValue == null]" is="#[MunitTools::equalTo(true)]" />
         </munit:validation>
     </munit:test>
 

@@ -36,12 +36,12 @@ The build was attempted with Java 17.0.21.1 (Zulu) and Maven 3.10.1. Maven's def
 - `src/main/mule/integration-ports.xml` — fail-closed placeholders for secret retrieval and durable persistence.
 - `src/main/mule/outbox-dispatch.xml` — canonical outbox dispatch boundary with stable event message IDs and acknowledgement handling.
 - `src/test/munit/provider-adapter-test-suite.xml` — signature-vector, rotation, retry identity, body mismatch, timestamp, privacy, and mapping tests for both providers.
-- `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, canonical schema enum/additional-property rejection, repeated-event deduplication, invalid signatures, persistence failure, and Andina business-data holds.
+- `src/test/munit/webhook-intake-test-suite.xml` — shared-flow tests for valid acceptance, canonical schema enum/additional-property rejection, repeated-event deduplication, missing secrets and invalid signatures, sensitive-context cleanup, persistence failure, and Andina business-data holds.
 - `src/test/munit/outbox-dispatch-test-suite.xml` — broker acknowledgement, publish-failure, and outbox-status update cases.
 - `src/test/resources/providers/quetzal/` — byte-for-byte copies of the fictional Quetzal test samples used by the signature tests.
 - `src/test/resources/providers/andina/` — byte-for-byte copies of the fictional Andina test samples used by signature and mapping tests.
 
-Each signature verifier is isolated from provider payload mapping and shared intake orchestration. The mappings emit the canonical fields defined in `docs/api/events/premium-payment.schema.json`, normalize event times to UTC, and do not copy payer or payment-method details from provider samples. Before either persistence port is called, the flow removes the raw body, signature, and secret variables from the event context. The HTTP flows call fail-closed secret and persistence ports; MUnit supplies controlled test doubles. They do not implement a durable store or broker publisher.
+Each signature verifier is isolated from provider payload mapping and shared intake orchestration. The mappings emit the canonical fields defined in `docs/api/events/premium-payment.schema.json`, normalize event times to UTC, and do not copy payer or payment-method details from provider samples. Before either persistence port is called, the flow removes the raw body, signature, and secret variables from the event context. Both provider flows also clear those sensitive variables after every outcome, including signature and secret-availability rejection. The HTTP flows call fail-closed secret and persistence ports; MUnit supplies controlled test doubles. They do not implement a durable store or broker publisher.
 
 ## Stubs and external services
 

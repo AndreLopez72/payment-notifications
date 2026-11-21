@@ -90,6 +90,7 @@
                 <set-variable variableName="responseStatus" value="#[400]" />
             </otherwise>
         </choice>
+        <flow-ref name="clear-sensitive-request-context" />
     </sub-flow>
 
     <sub-flow name="process-andina-webhook">
@@ -134,6 +135,7 @@
                 <set-variable variableName="responseStatus" value="#[400]" />
             </otherwise>
         </choice>
+        <flow-ref name="clear-sensitive-request-context" />
     </sub-flow>
 
     <sub-flow name="safe-persist-canonical-event">
