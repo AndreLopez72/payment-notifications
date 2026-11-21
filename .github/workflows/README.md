@@ -2,12 +2,14 @@
 
 ## CI (`ci.yml`)
 
-CI runs for every pull request, pushes to `main`, and manual validation. It builds the Mule application and runs MUnit, checks Terraform formatting and configuration without an Azure backend, reviews dependency changes on pull requests, and runs CodeQL analysis for Java sources. The Mule build uses Java 17 because the selected assessment implementation is Mule 4; Java 21 applies to the alternative stack described by the root README.
+CI runs for every pull request, pushes to `main`, and manual validation. It builds the Mule application and runs MUnit, validates OpenAPI and JSON Schema contracts, checks Terraform formatting and configuration without an Azure backend, scans changed commits for secrets, reviews dependency changes on pull requests, and runs CodeQL analysis for Java sources. The Mule build uses Java 17 because the selected assessment implementation is Mule 4; Java 21 applies to the alternative stack described by the root README.
 
 | Gate | Why it is included |
 |---|---|
 | Mule `clean verify` / MUnit | Exercises the submitted integration behavior and fails CI when its build or automated behavior checks fail. |
+| OpenAPI lint and JSON Schema metaschema validation | Rejects malformed or invalid API contracts before they reach providers or consumers. |
 | Terraform `fmt -check` and `validate` | Keeps infrastructure changes consistently formatted and rejects invalid Terraform configuration without contacting Azure or deploying. |
+| TruffleHog secret scan | Detects likely secret additions in changed commits without attempting to verify credentials against external services. It runs for pull requests and pushes, not manual whole-repository scans of the assessment's intentionally fictional reference material. |
 | Dependency review | Flags vulnerable dependency changes introduced by a pull request before merge. |
 | CodeQL Java analysis | Scans the Java signature adapters for code-level security findings. |
 

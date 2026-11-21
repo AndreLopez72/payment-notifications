@@ -53,6 +53,49 @@ jobs:
         working-directory: infra
         run: terraform validate -no-color
 
+  contract-validation:
+    name: API contract validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Lint OpenAPI contract
+        env:
+          REDOCLY_TELEMETRY: 'off'
+        run: npx --yes @redocly/cli@2.62.1 lint docs/api/webhooks.openapi.yaml
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Validate JSON Schema metaschema
+        run: |
+          python -m pip install --disable-pip-version-check check-jsonschema==0.39.0
+          check-jsonschema --check-metaschema docs/api/events/premium-payment.schema.json
+
+  secret-scanning:
+    name: Scan changed commits for secrets
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan changed commits without credential verification
+        uses: trufflesecurity/trufflehog@d232362a64a09a9e7d58267b8f5acef00ae90e23 # v3.100.0
+        with:
+          version: 3.100.0
+          extra_args: --no-verification --results=unverified
+
   dependency-review:
     name: Dependency vulnerability review
     if: github.event_name == 'pull_request'
