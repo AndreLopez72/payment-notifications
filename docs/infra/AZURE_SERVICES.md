@@ -40,7 +40,7 @@ The proposed SQL upper bound is deliberately limited to 2 vCores to control spen
 
 ## Infrastructure and deployment boundary
 
-Terraform keeps region, SQL capacity, Service Bus SKU/network mode, IP allowlist, Key Vault settings, identity IDs, and platform resource IDs as environment inputs until owners approve them. The current IaC models the Standard profile with IP filtering and no Service Bus private endpoint; the Premium fallback disables public access and uses a private endpoint. SQL and Key Vault use private endpoints in either profile. Terraform formatting passed previously; provider-schema validation still needs a successful rerun before anyone relies on a plan.
+Terraform keeps region, SQL capacity, Service Bus SKU/network mode, IP allowlist, Key Vault settings, identity IDs, and platform resource IDs as environment inputs until owners approve them. The current IaC models the Standard profile with IP filtering and no Service Bus private endpoint; the Premium fallback disables public access and uses a private endpoint. SQL and Key Vault use private endpoints in either profile. Terraform format and provider-schema validation passed in the GitHub Actions run for `33fe125`; an Azure plan/deployment, network access, and cost remain unverified.
 
 Existing private endpoint subnet, private DNS zones, Log Analytics workspace, Entra tenant, workload principals, and state backend are inputs owned by the platform. The infrastructure code does not create Azure compute: Mule 4 remains on the enterprise integration platform selected by the solution design. No deployment is authorized or performed by this assessment.
 

@@ -13,7 +13,9 @@ build/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.json
 !*.example.tfvars
+*.tfplan
 # Bicep build output
 *.json.bak
 # IDE and OS
@@ -24,3 +26,12 @@ build/
 # Local secrets
 .env
 *.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+settings.xml

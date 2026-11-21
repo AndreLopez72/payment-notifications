@@ -15,7 +15,7 @@ CI runs for every pull request, pushes to `main`, and manual validation. It buil
 
 Configure branch protection to require the CI checks before merging. The repository's GitHub security settings and environment protection rules must also permit the corresponding code-scanning and dependency-review features.
 
-The Mule build and CodeQL jobs resolve dependencies from the MuleSoft public repositories listed in `practical/pom.xml`. The candidate has a free MuleSoft learning account and no Enterprise Repository credentials. A successful CI run has not been observed; if a required artifact is unavailable publicly, record the build as unverified as permitted by `TASKS.md` rather than adding inaccessible credentials.
+The Mule build and CodeQL jobs resolve dependencies from the MuleSoft public repositories listed in `practical/pom.xml`. The candidate has a free MuleSoft learning account and no Enterprise Repository credentials. The complete CI workflow has not passed because MUnit cannot resolve its Enterprise runtime distribution; `TASKS.md` makes a successful CI link optional in this situation.
 
 ## CD (`deploy.yml`)
 
@@ -31,6 +31,6 @@ The workflow creates a plan and applies it only after the GitHub Environment's p
 
 ## Validation status
 
-`actionlint` v1.7.10 passed on both workflow files. A GitHub Actions CI run was started; its Terraform validation job reported schema errors in the Key Vault RBAC argument and diagnostic metric blocks under AzureRM 5.2.0. The configuration has been updated to the provider's current argument/block names, but CI has not yet been rerun successfully. Terraform CLI 1.9.8 local `fmt` and backend-disabled `init` passed previously; local `validate` remains blocked by the provider's gRPC TLS handshake before schema validation. The deployment workflow has not been run.
+`actionlint` v1.7.10 passed on both workflow files. In the [CI run for commit `33fe125`](https://github.com/AndreLopez72/payment-notifications/actions/runs/44944502626), Terraform format/validation, API contract validation, CodeQL Java analysis, and changed-commit secret scanning passed. Dependency review was skipped because this run was a push to `main`, not a pull request. Terraform CLI 1.9.8 local `fmt` and backend-disabled `init` passed previously; local `validate` remains blocked by the provider's gRPC TLS handshake before schema validation. The deployment workflow has not been run.
 
-The practical project passed local Maven `clean process-classes` with Java 17 and Windows certificate-store trust. Local `clean verify` reached MUnit but could not start its embedded Mule 4.9.9 runtime because the distribution BOM was unavailable from accessible repositories; no test assertion ran. The latest local commits have not been pushed, so CI has not checked them. A successful CI link remains optional under `TASKS.md` when MuleSoft Enterprise dependencies are inaccessible.
+The practical project passed local Maven `clean process-classes` with Java 17 and Windows certificate-store trust. Local `clean verify` reached MUnit but could not start its embedded Mule 4.9.9 runtime because the distribution BOM was unavailable from accessible repositories; no test assertion ran. The CI run for `33fe125` likewise failed in the Mule build/MUnit job. A temporary Mule Kernel test resolved a public runtime but rejected the application because it requires `MULE_EE`; that test-only change was removed. MUnit assertions remain unverified.

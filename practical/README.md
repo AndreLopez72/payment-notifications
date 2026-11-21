@@ -25,7 +25,7 @@ mvn clean test
 
 On 2026-11-21, Java 17.0.21.1 (Zulu) and Maven 3.10.1 built the application through `clean process-classes` successfully with a writable temporary Maven cache and `JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStoreType=Windows-ROOT`. This setting uses the Windows certificate store; TLS verification remained enabled. Mule's static analyzer still warned that the classpath JSON Schema resource could not be validated at build time, so runtime schema behavior remains unverified. It also warned that the local port 8081 listener is HTTP; external webhook HTTPS termination belongs at the API Manager boundary in the proposed design.
 
-`clean verify` reached MUnit but failed before running assertions. The MUnit child process could not resolve `com.mulesoft.mule.distributions:mule-runtime-impl-no-services-bom:pom:4.9.9` from the repositories available to the candidate; a private MuleSoft repository also returned `401`. The candidate has a free MuleSoft learning account and no Enterprise Repository credentials. An earlier attempt without the Windows certificate-store setting had failed sooner on JVM TLS validation. A successful GitHub CI run remains pending, and no MUnit case is claimed as passing.
+`clean verify` reached MUnit but failed before running assertions. The MUnit child process could not resolve `com.mulesoft.mule.distributions:mule-runtime-impl-no-services-bom:pom:4.9.9` from the repositories available to the candidate; a private MuleSoft repository also returned `401`. The candidate has a free MuleSoft learning account and no Enterprise Repository credentials. An earlier attempt without the Windows certificate-store setting had failed sooner on JVM TLS validation. The [CI run for commit `33fe125`](https://github.com/AndreLopez72/payment-notifications/actions/runs/44944502626) passed CodeQL but failed in the Mule build/MUnit job. A temporary Mule Kernel test reached application deployment but reported that this application requires `MULE_EE`; the test-only change was removed. No MUnit case is claimed as passing.
 
 As an independent check that does not require Mule dependencies, both Java signature adapters compiled with `javac --release 17`. A temporary local harness passed the supplied Quetzal and Andina valid-signature vectors and rejected signatures outside each provider's timestamp window. This does not execute the Mule flows or MUnit.
 
@@ -57,7 +57,7 @@ When a runtime secret provider and durable store are configured, the local liste
 
 ## Known gaps
 
-- Maven `clean process-classes` passed locally with the Windows certificate store. MUnit cannot start its Mule 4.9.9 embedded runtime with the repositories accessible to this candidate; no test assertion ran. A successful CI rerun remains pending.
+- Maven `clean process-classes` passed locally with the Windows certificate store. MUnit cannot start its Mule 4.9.9 Enterprise embedded runtime with the repositories accessible to this candidate; no test assertion ran. The CI run for `33fe125` confirmed the same Mule/MUnit job failure while CodeQL passed.
 - The test secrets are assessment-provided fictional sandbox values and exist only in the MUnit test; they are not runtime configuration.
 - The secret and persistence ports currently fail closed; no durable acceptance or idempotency store is implemented.
 - Canonical schema validation cases are authored but remain unexecuted. Mule's build-time analysis still warns on the packaged schema resource; verify its runtime resolution when a runnable MUnit environment is available.
