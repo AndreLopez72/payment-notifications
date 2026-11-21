@@ -34,6 +34,7 @@ Validation status (Terraform CLI 1.9.8, with the backend disabled):
 - `terraform fmt -recursive`: passed; `terraform fmt -check -recursive` now passes.
 - `terraform init -backend=false -input=false`: passed. AzureRM provider 5.2.0 was downloaded and its signed package was accepted; `.terraform.lock.hcl` records the provider selection and checksums.
 - `terraform validate -no-color`: blocked before configuration validation because the provider process failed its local gRPC TLS handshake (`x509: certificate signed by unknown authority`). The provider did not return its schema, so this is not a successful validation result.
+- A GitHub Actions Terraform validation run reached the AzureRM 5.2.0 schema and reported the obsolete Key Vault RBAC argument and diagnostic metric block names. The configuration now uses `rbac_authorization_enabled` and `enabled_metric`; a successful rerun is still required.
 
 Commands used from this directory:
 

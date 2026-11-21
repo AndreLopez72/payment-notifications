@@ -31,4 +31,4 @@ The workflow creates a plan and applies it only after the GitHub Environment's p
 
 ## Validation status
 
-`actionlint` v1.7.10 passed on both workflow files. No GitHub Actions workflow has been run. Terraform CLI 1.9.8 was downloaded temporarily for local format/init/validate attempts; `fmt` and backend-disabled `init` passed, while `validate` was blocked by the AzureRM provider's local gRPC TLS handshake before configuration validation. No CI or CD run is claimed.
+`actionlint` v1.7.10 passed on both workflow files. A GitHub Actions CI run was started; its Terraform validation job reported schema errors in the Key Vault RBAC argument and diagnostic metric blocks under AzureRM 5.2.0. The configuration has been updated to the provider's current argument/block names, but CI has not yet been rerun successfully. Terraform CLI 1.9.8 local `fmt` and backend-disabled `init` passed previously; local `validate` remains blocked by the provider's gRPC TLS handshake before schema validation. The deployment workflow has not been run.

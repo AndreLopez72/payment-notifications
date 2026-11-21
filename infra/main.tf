@@ -135,7 +135,7 @@ resource "azurerm_key_vault" "payments" {
   resource_group_name           = azurerm_resource_group.payments.name
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   sku_name                      = lower(var.key_vault_sku)
-  enable_rbac_authorization     = true
+  rbac_authorization_enabled    = true
   soft_delete_retention_days    = var.key_vault_soft_delete_retention_days
   purge_protection_enabled      = true
   public_network_access_enabled = false
@@ -199,10 +199,10 @@ resource "azurerm_monitor_diagnostic_setting" "sql" {
     }
   }
 
-  dynamic "metric" {
+  dynamic "enabled_metric" {
     for_each = data.azurerm_monitor_diagnostic_categories.sql.metrics
     content {
-      category = metric.value
+      category = enabled_metric.value
     }
   }
 }
@@ -223,10 +223,10 @@ resource "azurerm_monitor_diagnostic_setting" "servicebus" {
     }
   }
 
-  dynamic "metric" {
+  dynamic "enabled_metric" {
     for_each = data.azurerm_monitor_diagnostic_categories.servicebus.metrics
     content {
-      category = metric.value
+      category = enabled_metric.value
     }
   }
 }
@@ -247,10 +247,10 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
     }
   }
 
-  dynamic "metric" {
+  dynamic "enabled_metric" {
     for_each = data.azurerm_monitor_diagnostic_categories.key_vault.metrics
     content {
-      category = metric.value
+      category = enabled_metric.value
     }
   }
 }

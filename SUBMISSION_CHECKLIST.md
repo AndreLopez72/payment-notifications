@@ -24,9 +24,9 @@ Tick every item before you send your repository URL. Missing items are scored as
 - [x] `practical/README.md`
 
 ## Part C — Azure IaC and CI/CD
-- [x] Bicep or Terraform in `infra/`, with `infra/README.md` (formatting and backend-disabled init passed; validate is blocked before configuration validation by the provider process TLS handshake)
+- [x] Bicep or Terraform in `infra/`, with `infra/README.md` (a GitHub Actions validate run found AzureRM 5.2.0 schema errors; the field names were corrected and a successful rerun remains pending; local validate is blocked by the provider process TLS handshake)
 - [x] `docs/infra/AZURE_SERVICES.md` (illustrative order-of-magnitude monthly estimate and exclusions documented; target values remain open under A-17/A-32)
-- [x] Pipeline definition in `.github/workflows/` or `pipelines/` (`actionlint` v1.7.10 passed; GitHub Actions not run)
+- [x] Pipeline definition in `.github/workflows/` or `pipelines/` (`actionlint` v1.7.10 passed; one GitHub Actions CI run failed at Terraform schema validation; rerun pending)
 
 ## Part D — Operations
 - [x] `docs/operations/OPERATIONS.md`
@@ -41,6 +41,6 @@ Tick every item before you send your repository URL. Missing items are scored as
 
 ## Validation and remaining submission details
 
-- Terraform formatting and backend-disabled initialization have been run; `terraform validate` stopped before configuration validation because the AzureRM provider failed its local gRPC TLS handshake. `actionlint` v1.7.10 passed on both workflow files, but GitHub Actions have not been run. The Mule build was attempted with Java 17.0.21.1 and Maven 3.10.1 but stopped before compilation because Maven could not resolve the Mule Maven Plugin (local repository permissions, then JVM TLS certificate validation); MUnit was not executed. Do not treat authored workflows or tests as passing evidence.
+- Terraform formatting and backend-disabled initialization passed previously. Local `terraform validate` stopped before configuration validation because the AzureRM provider failed its local gRPC TLS handshake. One GitHub Actions CI run reached Terraform schema validation and failed on Key Vault RBAC and diagnostic metric field names; the code now uses the AzureRM 5.2.0 names, and a successful rerun is pending. `actionlint` v1.7.10 passed on both workflow files. The Mule build stopped before compilation because Maven could not resolve the Mule Maven Plugin (local repository permissions, then JVM TLS certificate validation); MUnit was not executed. Do not treat authored workflows or tests as passing evidence.
 - The assessment's provider test vectors and PR-214 contents are fictional reference material. Review the full repository and its Git history for secrets before publishing; repository visibility has not been verified.
 - Candidate ID, actual time spent, repository URL/visibility, and final submission commit SHA remain for the candidate to complete in `SUBMISSION.md`.
