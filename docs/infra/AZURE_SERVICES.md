@@ -1,6 +1,6 @@
 # Azure services and infrastructure rationale
 
-This proposal provisions infrastructure only; it does not deploy resources. It uses one Azure region for the three countries and reuses the platform Log Analytics workspace, as described in `SCENARIO.md`. Service tiers, region, and monthly cost remain subject to the open decision in A-17.
+This proposal provisions infrastructure only; it does not deploy resources. It uses one Azure region for the three countries and reuses the platform Log Analytics workspace, as described in `SCENARIO.md`. The pricing example below is illustrative; it does not approve target region, service tier, redundancy, or deployment values in A-17/A-32.
 
 | Service | Proposed use and rationale | Alternative considered | Tier / SKU | Reliability, security, and cost notes |
 |---|---|---|---|---|
@@ -18,6 +18,25 @@ Role assignments are scoped to the Service Bus topic (sender), the Salesforce su
 
 ## Cost estimate and validation
 
-An order-of-magnitude monthly estimate cannot be calculated from the supplied documentation without inventing inputs. A-17 identifies the missing Azure region, SQL and Service Bus tiers, redundancy settings, and monthly budget; the Key Vault tier and workspace retention/cost inputs are also not supplied. Therefore this proposal does not claim a monthly amount. Once the platform owner supplies the region, SKUs, redundancy, expected storage/throughput, and retention settings, calculate the estimate for those explicit inputs and record the assumptions here before deployment.
+### Illustrative monthly estimate (USD)
 
-Terraform 1.9.8 formatting and backend-disabled initialization passed. `terraform validate` is blocked because the AzureRM provider process fails its local gRPC TLS certificate handshake before returning its schema; details are recorded in `infra/README.md`. The monthly cost estimate remains open under A-17. No Azure resources are deployed by this assessment.
+This is a list-price reference scenario, not an approved production budget or a Terraform configuration. It uses East US only as a pricing reference because the target region is not specified; the target must still use the single region selected by the platform for all three countries. Prices are public Microsoft retail prices checked on 2026-11-21 and may differ by agreement, offer, currency, and date.
+
+**Workload basis:** a 30-day month with 26 normal days at 15,000 notifications/day and four month-end peak days at 120,000/day gives `(26 × 15,000) + (4 × 120,000) = 870,000 notifications/month`. The four peak days follow the scenario's last two and first two month-end days. This calculation is a scenario volume, not a forecast.
+
+| Cost item | Illustrative input and calculation | Monthly estimate (USD) |
+|---|---|---:|
+| Azure SQL Database compute | General Purpose, Gen5, provisioned 2 vCore, locally redundant; East US public retail rate `$0.304434/vCore-hour × 2 × 730 hours`. Storage, backup, and data transfer are excluded. | `$444.47` |
+| Azure Service Bus | Standard namespace; one namespace at `$10/month`. At three broker operations per notification (send, receive, complete), `870,000 × 3 = 2.61M operations/month`, below the first 13M operations included in Standard. Retries, DLQ/replay, connections, and excess operations may raise usage. | `$10.00` |
+| Azure Key Vault | Standard secrets operations; one secret read per notification at `$0.03/10,000 operations`: `870,000 ÷ 10,000 × $0.03`. This is a deliberately simple usage assumption; caching and additional secret/certificate operations change the result. | `$2.61` |
+| **Priced subtotal** | SQL compute + Service Bus base + assumed Key Vault reads. | **`$457.08/month` (about `$460`)** |
+
+The subtotal is not a complete service bill. Terraform also creates three private endpoints; their hourly charges and data-processing charges are excluded because the exact current regional rates and traffic volume were not confirmed in this estimate. SQL storage/backup, diagnostic log ingestion and retention in the existing Log Analytics workspace, network transfer, taxes, support, negotiated discounts, and any platform/Mule costs are also excluded. Existing platform workspace is reused; its incremental ingestion and retention cost is unknown, not assumed to be zero.
+
+**Sensitivity:** enabling SQL zone redundancy adds an estimated `$266.68/month` of compute at the reference rate (`$0.18266/vCore-hour × 2 × 730`), for about `$711.15/month` of SQL compute and `$723.76/month` priced subtotal before the same exclusions. This shows cost impact only; the required availability configuration is not established. SQL storage is billed separately and depends on the configured capacity and data; the proposed 90-day retention remains provisional under A-16.
+
+**Interpretation:** the estimate meets Part C's order-of-magnitude requirement for a documented reference case, while A-17/A-32 remain open for target selection. The illustrative values must not be copied into Terraform variables or treated as capacity validation. Recalculate with the approved region, SQL and Service Bus SKUs, redundancy, database size/backup policy, endpoint traffic, Key Vault access pattern, and Log Analytics ingestion/retention before deployment. The stated peak burst (40 notifications/second for 15 minutes) and backlog recovery objective require load and capacity validation; this price model does not prove those objectives.
+
+**Pricing references:** [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices) (public pay-as-you-go USD catalog; East US filter); [Azure SQL Database pricing](https://azure.microsoft.com/en-us/pricing/details/azure-sql-database/single/); [Service Bus pricing](https://azure.microsoft.com/en-us/pricing/details/service-bus/) (Standard first 13M operations/month included); [Key Vault pricing](https://azure.microsoft.com/en-us/pricing/details/key-vault/); [Private Link pricing](https://azure.microsoft.com/en-us/pricing/details/private-link/). Microsoft states that retail prices are estimates and may vary by offer/agreement and date.
+
+Terraform 1.9.8 formatting and backend-disabled initialization passed. `terraform validate` is blocked because the AzureRM provider process fails its local gRPC TLS certificate handshake before returning its schema; details are recorded in `infra/README.md`. The target region/SKUs and complete monthly cost remain open under A-17/A-32. No Azure resources are deployed by this assessment.

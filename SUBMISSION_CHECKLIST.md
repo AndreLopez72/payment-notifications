@@ -25,7 +25,7 @@ Tick every item before you send your repository URL. Missing items are scored as
 
 ## Part C — Azure IaC and CI/CD
 - [x] Bicep or Terraform in `infra/`, with `infra/README.md` (formatting and backend-disabled init passed; validate is blocked before configuration validation by the provider process TLS handshake)
-- [ ] `docs/infra/AZURE_SERVICES.md` (monthly cost estimate awaits A-17 inputs)
+- [x] `docs/infra/AZURE_SERVICES.md` (illustrative order-of-magnitude monthly estimate and exclusions documented; target values remain open under A-17/A-32)
 - [x] Pipeline definition in `.github/workflows/` or `pipelines/` (`actionlint` v1.7.10 passed; GitHub Actions not run)
 
 ## Part D — Operations

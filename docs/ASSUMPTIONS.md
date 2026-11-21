@@ -313,3 +313,13 @@
 - **Impact if incorrect:** Replays may duplicate or mislink payment records, or eligible payments may remain unapplied longer than necessary.
 - **Who should answer:** Azure messaging owner, Payments Integration operations owner, and Salesforce policy-core owner.
 
+## A-32 — Illustrative Azure cost reference case
+
+- **Documents affected:** `docs/infra/AZURE_SERVICES.md`; `infra/variables.tf`; `SUBMISSION_CHECKLIST.md`.
+- **Question:** Which Azure region, Azure SQL and Service Bus tiers, SQL redundancy and size, Key Vault tier, endpoint traffic, and Log Analytics retention/ingestion should be used for the approved monthly estimate and deployment?
+- **Context:** Part C asks for an order-of-magnitude monthly estimate, but the assessment does not select the target region, SKUs, database capacity, redundancy, endpoint traffic, logging volume/retention, or budget. Public retail rates vary by region, date, and purchase agreement.
+- **Options:** (1) Approve a platform-specific configuration and calculate with the Azure pricing calculator/catalog — estimates actual target spend; needs platform sizing and FinOps inputs. (2) Keep an explicitly illustrative public-price scenario — satisfies an order-of-magnitude estimate without selecting deployment values; has exclusions and cannot establish capacity. (3) Defer all figures — avoids provisional inputs but leaves the Part C cost deliverable incomplete.
+- **Provisional assumption used:** Use East US only as a reference-price region; price Azure SQL Database General Purpose Gen5 provisioned 2 vCore locally redundant, Service Bus Standard, and Key Vault Standard. For a 30-day peak month, use 870,000 notifications, three Service Bus operations per notification, and one Key Vault secret read per notification. Use 730 compute hours/month and public USD retail rates checked 2026-11-21. The documented `$457.08/month` priced subtotal excludes three Private Link endpoints and their data processing, SQL storage/backup, Log Analytics ingestion/retention, network transfer, taxes, and agreement discounts. A zone-redundant SQL sensitivity is separately shown. None of these provisional inputs is a Terraform default or target approval.
+- **Impact if incorrect:** Actual monthly cost may materially differ; the provisional SQL capacity, Service Bus tier, redundancy, or usage model may not satisfy measured throughput, recovery, availability, data retention, or budget needs.
+- **Who should answer:** Azure platform/infrastructure owner, FinOps owner, and Payments product owner; privacy/observability owners should confirm retention and telemetry volume.
+
