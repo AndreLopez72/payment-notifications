@@ -42,6 +42,7 @@ The first GitHub Actions build stopped while Maven was reading the POM because i
 - `src/test/resources/providers/andina/` — byte-for-byte copies of the fictional Andina test samples used by signature and mapping tests.
 
 Each signature verifier is isolated from provider payload mapping and shared intake orchestration. The mappings emit the canonical fields defined in `docs/api/events/premium-payment.schema.json`, normalize event times to UTC, and do not copy payer or payment-method details from provider samples. Before either persistence port is called, the flow removes the raw body, signature, and secret variables from the event context. Both provider flows also clear those sensitive variables after every outcome, including signature and secret-availability rejection. The HTTP flows call fail-closed secret and persistence ports; MUnit supplies controlled test doubles. They do not implement a durable store or broker publisher.
+Each HTTP listener captures `receivedAt` once and derives the timestamp-validation clock from that value before invoking the provider flow. The MUnit flow tests supply their own deterministic `receivedAt` values; listener execution remains unverified until the Mule build runs.
 
 ## Stubs and external services
 

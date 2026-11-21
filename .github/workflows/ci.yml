@@ -32,6 +32,9 @@ jobs:
 
       - name: Build and run MUnit
         working-directory: practical
+        env:
+          MULESOFT_USERNAME: ${{ secrets.MULESOFT_USERNAME }}
+          MULESOFT_PASSWORD: ${{ secrets.MULESOFT_PASSWORD }}
         run: mvn --batch-mode --no-transfer-progress clean verify
 
   terraform-validation:
@@ -144,6 +147,9 @@ jobs:
 
       - name: Build Mule Java sources
         working-directory: practical
+        env:
+          MULESOFT_USERNAME: ${{ secrets.MULESOFT_USERNAME }}
+          MULESOFT_PASSWORD: ${{ secrets.MULESOFT_PASSWORD }}
         run: mvn --batch-mode --no-transfer-progress -DskipTests compile
 
       - name: Run CodeQL analysis

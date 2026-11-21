@@ -22,7 +22,8 @@
         <set-variable variableName="rawBody" value="#[payload as Binary]" />
         <set-variable variableName="signatureHeader"
                       value="#[attributes.headers.'Quetzal-Signature' default '']" />
-        <set-variable variableName="nowEpochSeconds" value="#[floor(now() as Number)]" />
+        <set-variable variableName="receivedAt" value="#[now()]" />
+        <set-variable variableName="nowEpochSeconds" value="#[floor(vars.receivedAt as Number)]" />
         <set-variable variableName="correlationId" value="#[uuid()]" />
         <flow-ref name="process-quetzal-webhook" />
         <set-payload value="#[null]" />
@@ -42,7 +43,8 @@
                       value="#[attributes.headers.'X-Andina-Timestamp' default '']" />
         <set-variable variableName="signatureValue"
                       value="#[attributes.headers.'X-Andina-Signature' default '']" />
-        <set-variable variableName="nowEpochSeconds" value="#[floor(now() as Number)]" />
+        <set-variable variableName="receivedAt" value="#[now()]" />
+        <set-variable variableName="nowEpochSeconds" value="#[floor(vars.receivedAt as Number)]" />
         <set-variable variableName="correlationId" value="#[uuid()]" />
         <flow-ref name="process-andina-webhook" />
         <set-payload value="#[null]" />
