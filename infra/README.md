@@ -12,6 +12,7 @@ This directory contains Terraform for the Azure resources in the solution design
 ## Structure and parameters
 
 - `versions.tf` and `backend.tf`: Terraform/provider constraints and the Azure Storage backend type.
+- `.terraform.lock.hcl`: exact AzureRM provider selection and package checksums produced by initialization.
 - `variables.tf`: required environment, location, existing network/DNS/Log Analytics IDs, approved SKU values, and Entra principal object IDs.
 - `main.tf`: resource group, SQL server/database, Service Bus namespace/topic/subscription, Key Vault, private endpoints, least-privilege role assignments, and diagnostic settings.
 - `outputs.tf`: non-secret resource IDs and names.
@@ -28,7 +29,13 @@ Service Bus uses a topic subscription with dead-letter-on-expiration enabled and
 
 ## Validation (no deployment)
 
-Validation status: **not run**. Terraform is not available in the current workspace. Once installed and AzureRM dependencies are available, run from this directory:
+Validation status (Terraform CLI 1.9.8, with the backend disabled):
+
+- `terraform fmt -recursive`: passed; `terraform fmt -check -recursive` now passes.
+- `terraform init -backend=false -input=false`: passed. AzureRM provider 5.2.0 was downloaded and its signed package was accepted; `.terraform.lock.hcl` records the provider selection and checksums.
+- `terraform validate -no-color`: blocked before configuration validation because the provider process failed its local gRPC TLS handshake (`x509: certificate signed by unknown authority`). The provider did not return its schema, so this is not a successful validation result.
+
+Commands used from this directory:
 
 ```powershell
 terraform fmt -check -recursive
@@ -36,4 +43,4 @@ terraform init -backend=false
 terraform validate
 ```
 
-These commands validate formatting and configuration only. Do not run `terraform apply` for this assessment. A successful local validation does not confirm Azure quota, network connectivity from Mule, role assignment authorization, SKU suitability, or cost. Resolve the applicable assumptions and supply approved values before any deployment outside the assessment.
+These commands validate formatting and configuration only. `terraform init -backend=false` does not configure or access the Azure Storage backend. No Azure resources were created or changed. Do not run `terraform apply` for this assessment. A successful local validation would not confirm Azure quota, network connectivity from Mule, role assignment authorization, SKU suitability, or cost. Resolve the applicable assumptions and supply approved values before any deployment outside the assessment.

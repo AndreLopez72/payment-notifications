@@ -74,7 +74,7 @@ resource "azurerm_servicebus_topic" "canonical_events" {
   name         = "premium-payment-events"
   namespace_id = azurerm_servicebus_namespace.payments.id
 
-  requires_duplicate_detection          = var.servicebus_duplicate_detection_enabled
+  requires_duplicate_detection            = var.servicebus_duplicate_detection_enabled
   duplicate_detection_history_time_window = var.servicebus_duplicate_detection_enabled ? var.servicebus_duplicate_detection_window : null
 }
 

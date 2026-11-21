@@ -20,4 +20,4 @@ Role assignments are scoped to the Service Bus topic (sender), the Salesforce su
 
 An order-of-magnitude monthly estimate cannot be calculated from the supplied documentation without inventing inputs. A-17 identifies the missing Azure region, SQL and Service Bus tiers, redundancy settings, and monthly budget; the Key Vault tier and workspace retention/cost inputs are also not supplied. Therefore this proposal does not claim a monthly amount. Once the platform owner supplies the region, SKUs, redundancy, expected storage/throughput, and retention settings, calculate the estimate for those explicit inputs and record the assumptions here before deployment.
 
-Terraform validation is documented in `infra/README.md`. No resources are deployed by this assessment.
+Terraform 1.9.8 formatting and backend-disabled initialization passed. `terraform validate` is blocked because the AzureRM provider process fails its local gRPC TLS certificate handshake before returning its schema; details are recorded in `infra/README.md`. The monthly cost estimate remains open under A-17. No Azure resources are deployed by this assessment.

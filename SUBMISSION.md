@@ -37,7 +37,7 @@
 
 ## Known gaps and what I would do next
 
-- Configure a writable Maven local repository and the required JVM-trusted certificate chain for the MuleSoft and Maven Central repositories, then rerun the Part B build/MUnit suite. Run `terraform fmt` and `terraform validate` when Terraform is available; the GitHub workflow files have not been run or independently syntax-validated.
+- Configure a writable Maven local repository and the required JVM-trusted certificate chain for the MuleSoft and Maven Central repositories, then rerun the Part B build/MUnit suite. Terraform 1.9.8 `fmt` and backend-disabled `init` pass; `validate` is blocked before configuration validation by the AzureRM provider's local gRPC TLS handshake error. GitHub workflow files have not been run or independently syntax-validated.
 - Confirm Azure region, SQL/Service Bus/Key Vault tiers, redundancy, workload identities, private networking, state backend, and budget with the platform owners. The monthly cost estimate remains open because these inputs are not in the assessment.
 - Configure GitHub Environments, Azure OIDC federation, remote state, approvers, and least-privilege permissions before any deployment workflow use. No deployment has been performed.
 - Confirm Mule-to-Azure identity, network, and telemetry support; Salesforce API Manager backend-token mediation; the exact on-call destination; and the v1 DLQ replay mechanism (A-02/A-14/A-22/A-26/A-29/A-30/A-31).
